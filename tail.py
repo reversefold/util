@@ -24,11 +24,6 @@ def follow(thefile):
             continue
         yield line[:-1]
 
-#logfile = open("access-log")
-#loglines = follow(logfile)
-#for line in loglines:
-#    print line
-
 def tail_multiple(*filenames):
     prefix_len = max(len(f) for f in filenames) + 3
     threads = []
