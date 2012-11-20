@@ -1,2 +1,3 @@
 util
 ====
+Random utilities
