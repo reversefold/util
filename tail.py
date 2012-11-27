@@ -10,6 +10,7 @@ Options:
 '''
 
 from docopt import docopt
+import os
 import sys
 import threading
 import time
@@ -23,6 +24,7 @@ def follow(thefile):
             time.sleep(0.1)    # Sleep briefly
             continue
         yield line[:-1]
+
 
 def tail_multiple(*filenames):
     prefix_len = max(len(f) for f in filenames) + 3
@@ -46,6 +48,9 @@ def tail_multiple(*filenames):
 
 
 def tail(filename, prefix=''):
+    if not os.path.exists(filename):
+        print >> sys.stderr, 'file %s does not exist' % (filename,)
+        return
     thefile = open(filename, 'r')
     for line in follow(thefile):
         print prefix + line
