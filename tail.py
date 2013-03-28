@@ -18,12 +18,16 @@ import time
 
 def follow(thefile):
     thefile.seek(0, 2)      # Go to the end of the file
+    line = ''
     while True:
-        line = thefile.readline()
-        if not line:
+        new_line = thefile.readline()
+        if not new_line:
             time.sleep(0.1)    # Sleep briefly
             continue
-        yield line[:-1]
+        line += new_line
+        if line[-1] == '\n':
+            yield line[:-1]
+            line = ''
 
 
 def tail_multiple(*filenames):
