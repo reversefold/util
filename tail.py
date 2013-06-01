@@ -16,13 +16,41 @@ import threading
 import time
 
 
+try:
+    from watchdog.events import FileSystemEventHandler
+    from watchdog.observers import Observer
+
+    class TailHandler(FileSystemEventHandler):
+        def __init__(self, filename, thefile, prefix=''):
+            super(TailHandler, self).__init__()
+            self.prefix = prefix
+            self.filename = filename
+            self.thefile = thefile
+            self.line = ''
+
+        def on_modified(self, event):
+            if event.src_path != self.filename:
+                return
+            while True:
+                new_line = self.thefile.readline()
+                if not new_line:
+                    return
+                self.line += new_line
+                if self.line[-1] == '\n':
+                    print self.prefix + self.line[:-1]
+                    self.line = ''
+
+except ImportError:
+    TailHandler = None
+
+
 def follow(thefile):
-    thefile.seek(0, 2)      # Go to the end of the file
+    thefile.seek(0, 2)  # Go to the end of the file
     line = ''
     while True:
         new_line = thefile.readline()
         if not new_line:
-            time.sleep(0.1)    # Sleep briefly
+            time.sleep(0.1)  # Sleep briefly
             continue
         line += new_line
         if line[-1] == '\n':
@@ -34,9 +62,25 @@ def tail(filename, prefix=''):
     if not os.path.exists(filename):
         print >> sys.stderr, 'file %s does not exist' % (filename,)
         return
-    thefile = open(filename, 'r')
-    for line in follow(thefile):
-        print prefix + line
+
+    with open(filename, 'r') as thefile:
+        if TailHandler is None:
+            for line in follow(thefile):
+                print prefix + line
+
+        else:
+            thefile.seek(0, 2)  # Go to the end of the file
+            filename = os.path.abspath(filename)
+            handler = TailHandler(filename, thefile, prefix)
+            observer = Observer()
+            observer.schedule(handler, path=os.path.dirname(filename))
+            observer.start()
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                observer.stop()
+            observer.join()
 
 
 def tail_multiple(*filenames):
