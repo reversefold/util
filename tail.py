@@ -30,6 +30,15 @@ def follow(thefile):
             line = ''
 
 
+def tail(filename, prefix=''):
+    if not os.path.exists(filename):
+        print >> sys.stderr, 'file %s does not exist' % (filename,)
+        return
+    thefile = open(filename, 'r')
+    for line in follow(thefile):
+        print prefix + line
+
+
 def tail_multiple(*filenames):
     prefix_len = max(len(f) for f in filenames) + 3
     threads = []
@@ -49,15 +58,6 @@ def tail_multiple(*filenames):
                     threads.remove(thread)
     except KeyboardInterrupt:
         sys.exit(0)
-
-
-def tail(filename, prefix=''):
-    if not os.path.exists(filename):
-        print >> sys.stderr, 'file %s does not exist' % (filename,)
-        return
-    thefile = open(filename, 'r')
-    for line in follow(thefile):
-        print prefix + line
 
 
 if __name__ == '__main__':
