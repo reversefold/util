@@ -15,6 +15,9 @@ import sys
 import threading
 import time
 
+# TODO: Handle file truncation
+# TODO: Handle file disappearing
+# TODO: Handle file appearing
 
 try:
     from watchdog.events import FileSystemEventHandler
