@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-'''Watches files for new lines and prints them prefixed with the filename.
+"""Watches files for new lines and prints them prefixed with the filename.
 
 Usage:
   tail.py -h | --help
@@ -7,7 +7,7 @@ Usage:
 
 Options:
   -h --help              Help.
-'''
+"""
 
 from docopt import docopt
 import os
