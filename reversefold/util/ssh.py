@@ -19,7 +19,7 @@ def escape_single_quotes(val):
     return val.replace("'", """'"'"'""")
 
 
-class SshException(Exception):
+class SSHException(Exception):
     pass
 
 
