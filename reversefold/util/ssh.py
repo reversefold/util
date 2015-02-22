@@ -156,7 +156,7 @@ class SSHHost(object):
         (stdout, stderr) = multiproc.run_subproc(ssh, output_func=self.puts)
 
         if ssh.returncode:
-            raise SshException("ssh return code was %r" % (ssh.returncode,))
+            raise SSHException("ssh return code was %r" % (ssh.returncode,))
 
         return (stdout, stderr)
 
