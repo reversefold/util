@@ -54,22 +54,28 @@ def run_subproc(proc, prefix='', wait=True, output_func=None):
             thread.start()
         if wait and proc.returncode is None:
             proc.wait()
-        return (stdout, stderr)
+        if wait:
+            return (stdout, stderr)
+        return (stdout, stderr, threads)
     finally:
         if wait:
             # by this time the proc should be finished and all pipes should be closed
             # but just in case...
-            for thread in threads:
-                thread.join()
-            for pipe in [proc.stdin, proc.stderr, proc.stdout]:
-                if pipe is None or pipe.closed:
-                    continue
-                pipe.close()
-            try:
-                proc.terminate()
-            except:
-                pass
-            try:
-                proc.wait()
-            except:
-                pass
+            terminate_subproc(proc, threads)
+
+
+def terminate_subproc(proc, threads):
+    for thread in threads:
+        thread.join()
+    for pipe in [proc.stdin, proc.stderr, proc.stdout]:
+        if pipe is None or pipe.closed:
+            continue
+        pipe.close()
+    try:
+        proc.terminate()
+    except:
+        pass
+    try:
+        proc.wait()
+    except:
+        pass

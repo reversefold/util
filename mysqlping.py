@@ -24,11 +24,13 @@ import time
 i = 0
 down_start = None
 
+
 def log(msg):
     global i
     print '%s [%r] %s' % (datetime.datetime.now(), i, msg)
     sys.stdout.flush()
     i += 1
+
 
 def mysqlping(hostname, port=3306, username=None, password=None):
     global down_start
@@ -56,6 +58,7 @@ def mysqlping(hostname, port=3306, username=None, password=None):
                 down_start = datetime.datetime.now()
             log('Down for %s so far: %s' % (datetime.datetime.now() - down_start, e))
             time.sleep(1)
+
 
 if __name__ == '__main__':
     args = docopt(__doc__)
