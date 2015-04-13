@@ -29,7 +29,7 @@ def run_subproc(proc, prefix='', wait=True, output_func=None):
     """
     Runs a single subprocess, outputting then returning the stderr and stdout
 
-    returns: returncode, stdout, stderr
+    returns: stdout, stderr
     """
     if output_func is None:
         output_func = sys.stdout.write
