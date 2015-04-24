@@ -1,7 +1,10 @@
+import fcntl
+import io
+import os
 import time
 
 
-class Follower(object):
+class LineFollower(object):
     """
     Implements a simple (naive) file streamer which will emit lines
     until the finish property is set to False.
@@ -42,3 +45,54 @@ class Follower(object):
             if buf[-1][-1] == '\n':
                 yield ''.join(buf)[:-1]
                 buf = []
+
+
+class Follower(object):
+    """
+    Implements a simple (naive) file streamer which will emit bytes
+    until the finish property is set to False.
+
+    Ex:
+    with Follower('a') as f:
+        i = 0
+        for data in f:
+            sys.stdout.write(data)
+            i += 1
+            if i == 50:
+                f.finish = True
+    """
+    def __init__(self, filename, tail_only=False, chunk_size=1024):
+        self.filename = filename
+        self.tail_only = tail_only
+        self.chunk_size = chunk_size
+
+        self.file = None
+        self.fd = None
+        self.finish = False
+
+    def __enter__(self):
+        #self.file = open(self.filename, 'rb', 0)
+        #flags = fcntl.fcntl(self.file.fileno(), fcntl.F_GETFL)
+        #flags = flags | os.O_NONBLOCK
+        #fcntl.fcntl(self.file.fileno(), fcntl.F_SETFL, flags)
+        self.fd = os.open(self.filename, os.O_RDONLY | os.O_NONBLOCK)
+        if self.tail_only:
+            # Go to the end of the file
+            #self.file.seek(0, os.SEEK_END)
+            os.lseek(self.fd, 0, os.SEEK_END)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        #self.file.close()
+        os.close(self.fd)
+
+    def __iter__(self):
+        while True:
+            #data = self.file.read(self.chunk_size)
+            data = os.read(self.fd, self.chunk_size)
+            if not data:
+                if self.finish:
+                    raise StopIteration()
+                time.sleep(0.1)
+                continue
+            yield data
