@@ -66,29 +66,21 @@ class Follower(object):
         self.tail_only = tail_only
         self.chunk_size = chunk_size
 
-        self.file = None
         self.fd = None
         self.finish = False
 
     def __enter__(self):
-        #self.file = open(self.filename, 'rb', 0)
-        #flags = fcntl.fcntl(self.file.fileno(), fcntl.F_GETFL)
-        #flags = flags | os.O_NONBLOCK
-        #fcntl.fcntl(self.file.fileno(), fcntl.F_SETFL, flags)
         self.fd = os.open(self.filename, os.O_RDONLY | os.O_NONBLOCK)
         if self.tail_only:
             # Go to the end of the file
-            #self.file.seek(0, os.SEEK_END)
             os.lseek(self.fd, 0, os.SEEK_END)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        #self.file.close()
         os.close(self.fd)
 
     def __iter__(self):
         while True:
-            #data = self.file.read(self.chunk_size)
             data = os.read(self.fd, self.chunk_size)
             if not data:
                 if self.finish:
