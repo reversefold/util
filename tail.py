@@ -15,6 +15,8 @@ import sys
 import threading
 import time
 
+import reversefold.util.follow
+
 # TODO: Handle file truncation
 # TODO: Handle file disappearing
 # TODO: Handle file appearing
@@ -66,24 +68,24 @@ def tail(filename, prefix=''):
         print >> sys.stderr, 'file %s does not exist' % (filename,)
         return
 
-    with open(filename, 'r') as thefile:
-        if TailHandler is None:
-            for line in follow(thefile):
+    if TailHandler is None:
+        with reversefold.util.follow.Follower(filename) as f:
+            for line in f:
                 print prefix + line
 
-        else:
-            thefile.seek(0, 2)  # Go to the end of the file
-            filename = os.path.abspath(filename)
-            handler = TailHandler(filename, thefile, prefix)
-            observer = Observer()
-            observer.schedule(handler, path=os.path.dirname(filename))
-            observer.start()
-            try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                observer.stop()
-            observer.join()
+    with open(filename, 'r') as thefile:
+        thefile.seek(0, 2)  # Go to the end of the file
+        filename = os.path.abspath(filename)
+        handler = TailHandler(filename, thefile, prefix)
+        observer = Observer()
+        observer.schedule(handler, path=os.path.dirname(filename))
+        observer.start()
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            observer.stop()
+        observer.join()
 
 
 def tail_multiple(*filenames):
