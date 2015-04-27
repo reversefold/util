@@ -117,15 +117,12 @@ class SSHHost(object):
 
         return ssh_options
 
-    def _get_ssh_cmd(self, use_sudo=False):
+    def _get_ssh_cmd(self):
         """Get the array needed to run subprocess.Popen with ssh"""
 
         sshcmd = ['ssh']
         sshcmd.extend(self._get_ssh_options())
         sshcmd.append(str(self.host))
-
-        if use_sudo:
-            sshcmd.append('sudo')
 
         return sshcmd
 
