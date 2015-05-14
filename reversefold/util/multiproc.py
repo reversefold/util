@@ -22,7 +22,7 @@ class Pipe(object):
         # This is supposedly fixed in Python 3.2.
         for line in iter(self.input.readline, b''):
             self.buf.append(line)
-            self.output_func('%s%s%s%s' % (self.prefix, self.pre, line.rstrip(), self.post))
+            self.output_func('%s%s%s%s\n' % (self.prefix, self.pre, line.rstrip(), self.post))
 
 
 def run_subproc(proc, prefix='', wait=True, output_func=None):
