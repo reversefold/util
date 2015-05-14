@@ -39,8 +39,7 @@ class SSHHost(object):
         self.cipher = cipher
         self.check_host_keys = check_host_keys
         self.ssh_log_level = ssh_log_level
-        self.host_prefix = '%s%s[%s%s%s%s%s%s%s]%s' % (
-            self.prefix,
+        self.host_prefix = '%s[%s%s%s%s%s%s%s]%s' % (
             Style.BRIGHT,
             Style.NORMAL,
             Fore.LIGHTBLUE_EX,
