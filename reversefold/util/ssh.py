@@ -71,7 +71,7 @@ class SSHHost(object):
         ###       could find to ensure that no text errors happened.
         line = line.encode('ascii', 'replace')
 
-        sys.stdout.write('%s %s\n' % (self.full_prefix, line))
+        sys.stdout.write('%s %s' % (self.full_prefix, line))
         sys.stdout.flush()
 
     def _get_ssh_options(self):
