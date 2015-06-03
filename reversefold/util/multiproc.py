@@ -4,52 +4,71 @@ import sys
 from colorama import Fore, Style
 
 
+DEFAULT_OUT_PREFIX = '%s[%s%sout%s%s]%s ' % (
+    Style.BRIGHT, Style.NORMAL, Fore.GREEN, Fore.RESET, Style.BRIGHT, Style.NORMAL)
+DEFAULT_OUT_POSTFIX = ''
+DEFAULT_ERR_PREFIX= '%s[%s%serr%s%s]%s%s ' % (
+    Style.BRIGHT, Style.NORMAL, Fore.RED, Fore.RESET, Style.BRIGHT, Style.NORMAL, Fore.RED)
+DEFAULT_ERR_POSTFIX = Fore.RESET
+
+
 class Pipe(object):
-    # TODO: input and output_func are not symmetric, perhaps
-    # they should use the same interface?
-    def __init__(self, prefix, input, buf, output_func, pre, post):
+    # TODO: input and output_func are not symmetric, perhaps they should
+    # use the same interface?
+    def __init__(self, prefix, input_stream, buf, output_func, postfix):
         self.prefix = prefix
-        self.input = input
+        self.input_stream = input_stream
         self.buf = buf
         self.output_func = output_func
-        self.pre = pre
-        self.post = post
+        self.postfix = postfix
 
     def flow(self):
         # NOTE: 'for line in self.input' seems correct but will
         #  implicitly do extra buffering in Python 2.7, which won't
         #  give you a line immediately every time one is available.
         # This is supposedly fixed in Python 3.2.
-        for line in iter(self.input.readline, b''):
+        for line in iter(self.input_stream.readline, b''):
             self.buf.append(line)
-            self.output_func('%s%s%s%s\n' % (self.prefix, self.pre, line.rstrip(), self.post))
+            self.output_func('%s%s%s\n' % (self.prefix, line.rstrip(), self.postfix))
 
 
-def run_subproc(proc, prefix='', wait=True, output_func=None):
+def run_subproc(
+    proc, prefix='', wait=True, output_func=None,
+    out_prefix=None,
+    out_postfix=None,
+    err_prefix=None,
+    err_postfix=None,
+):
     """
     Runs a single subprocess, outputting then returning the stderr and stdout
 
     returns: stdout, stderr
     """
+    if out_prefix is None:
+        out_prefix = DEFAULT_OUT_PREFIX
+    if out_postfix is None:
+        out_postfix = DEFAULT_OUT_POSTFIX
+    if err_prefix is None:
+        err_prefix = DEFAULT_ERR_PREFIX
+    if err_postfix is None:
+        err_postfix = DEFAULT_ERR_POSTFIX
     if output_func is None:
         output_func = sys.stdout.write
     stdout = []
     stderr = []
     threads = []
     try:
-        for (prefix, pipe, buf, pre, post) in [
-            ('%s%s[%s%serr%s%s]%s ' % (prefix, Style.BRIGHT, Style.NORMAL,
-                                       Fore.RED, Fore.RESET, Style.BRIGHT, Style.NORMAL),
-                proc.stderr, stderr, Fore.RED, Fore.RESET),
-            ('%s%s[%s%sout%s%s]%s ' % (prefix, Style.BRIGHT, Style.NORMAL,
-                                       Fore.GREEN, Fore.RESET, Style.BRIGHT, Style.NORMAL),
-                proc.stdout, stdout, '', ''),
+        for (prefix, pipe, buf, postfix) in [
+            ('%s%s' % (prefix, err_prefix),
+                proc.stderr, stderr, err_postfix),
+            ('%s%s' % (prefix, out_prefix),
+                proc.stdout, stdout, out_postfix),
         ]:
             if pipe is None or pipe.closed:
                 continue
             thread = threading.Thread(
                 name=prefix,
-                target=Pipe(prefix, pipe, buf, output_func, pre, post).flow)
+                target=Pipe(prefix, pipe, buf, output_func, postfix).flow)
             threads.append(thread)
             thread.start()
         if wait and proc.returncode is None:
@@ -73,9 +92,9 @@ def terminate_subproc(proc, threads):
         pipe.close()
     try:
         proc.terminate()
-    except:
+    except Exception:
         pass
     try:
         proc.wait()
-    except:
+    except Exception:
         pass
