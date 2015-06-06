@@ -1,3 +1,4 @@
+import os
 import threading
 import sys
 
@@ -13,6 +14,19 @@ DEFAULT_ERR_POSTFIX = Fore.RESET
 
 
 class Pipe(object):
+    def __init__(self, input_stream, output_func):
+        self.input_stream = input_stream
+        self.output_func = output_func
+
+    def flow(self):
+        while True:
+            data = os.read(self.input_stream.fileno(), 65536)
+            if data == b'':
+                break
+            self.output_func(data)
+
+
+class LinePipe(object):
     # TODO: input and output_func are not symmetric, perhaps they should
     # use the same interface?
     def __init__(self, prefix, input_stream, buf, output_func, postfix):
@@ -68,7 +82,7 @@ def run_subproc(
                 continue
             thread = threading.Thread(
                 name=prefix,
-                target=Pipe(prefix, pipe, buf, output_func, postfix).flow)
+                target=LinePipe(prefix, pipe, buf, output_func, postfix).flow)
             threads.append(thread)
             thread.start()
         if wait and proc.returncode is None:
