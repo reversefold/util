@@ -4,7 +4,7 @@
 This script will exit when the command exits.
 
 Usage:
-    daemonize.py [--pidfile=<pidfile>] [--stdout-log=<stdout-log>] [--stderr-log=<stderr-log>] <command>...
+    daemonize.py [--pidfile=<pidfile>] [--stdout-log=<stdout-log>] [--stderr-log=<stderr-log>] -- <command>...
 
 Options:
     -h --help                     Show this help text.
@@ -12,7 +12,6 @@ Options:
     -o --stdout-log=<stdout-log>  Path to log which will hold the stdout of the command [Default: log/stdout.log]
     -e --stderr-log=<stderr-log>  Path to log which will hold the stderr of the command [Default: log/stderr.log]
                                   The special value STDOUT will put this in the same log as the stdout output.
-
 """
 import logging
 import logging.handlers
