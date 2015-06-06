@@ -66,7 +66,6 @@ def get_logger(name, filename):
 
 def main():
     args = docopt(__doc__)
-    print args
     out_logger, out_handler = get_logger('stdout', args['--stdout-log'])
     preserve = [out_handler.stream]
     if args['--stderr-log'] != 'STDOUT':
