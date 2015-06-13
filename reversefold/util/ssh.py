@@ -129,24 +129,26 @@ class SSHHost(object):
         """
         Runs command via ssh and executable.
         """
-        sshcmd = self._get_ssh_cmd()
+        cmds = []
+        if cwd is not None:
+            cmds.append("cd '%s'" % (escape_single_quotes(cwd),))
 
-        sshcmd.append(executable)
+        cmds.append(command)
+
+        run_cmd = '; '.join(cmds)
+
+        if output_running:
+            self.puts(run_cmd)
+
+        sshcmd = self._get_ssh_cmd()
+        sshcmd.append("%s '%s'" % (executable, escape_single_quotes(run_cmd)))
+
         ssh = subprocess.Popen(
             sshcmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
 
-        # We write the command(s) to the ssh proc's stdin to avoid having to do extra escaping.
-        if cwd is not None:
-            cd_cmd = "cd '%s'" % (escape_single_quotes(cwd),)
-            if output_running:
-                self.puts(cd_cmd)
-            ssh.stdin.write("%s\n" % (cd_cmd,))
-        if output_running:
-            self.puts(command)
-        ssh.stdin.write(command)
         ssh.stdin.close()
 
         (stdout, stderr) = multiproc.run_subproc(ssh, output_func=self.puts)
@@ -157,7 +159,7 @@ class SSHHost(object):
         return (stdout, stderr)
 
     def run(self, command, cwd=None, output_running=False):
-        return self._run('/bin/bash', command, cwd, output_running)
+        return self._run('/bin/bash -c', command, cwd, output_running)
 
     def sudo(self, command, cwd=None, output_running=False):
-        return self._run('sudo /bin/bash', command, cwd, output_running)
+        return self._run('sudo /bin/bash -c', command, cwd, output_running)
