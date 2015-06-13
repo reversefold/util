@@ -24,6 +24,9 @@ class SSHException(Exception):
 
 
 class SSHHost(object):
+    # Used to know when no value is passed into stdin as None is a valid value
+    __SENTINEL = object()
+
     def __init__(self, host, port=None, user=None, output_prefix='', prefix_pad_length=28,
                  connect_timeout=5,
                  # Default to the blowfish cipher for speed
@@ -125,7 +128,7 @@ class SSHHost(object):
 
         return sshcmd
 
-    def _run(self, executable, command, cwd=None, output_running=False):
+    def _run(self, executable, command, cwd=None, output_running=False, stdin=__SENTINEL):
         """
         Runs command via ssh and executable.
         """
@@ -143,13 +146,18 @@ class SSHHost(object):
         sshcmd = self._get_ssh_cmd()
         sshcmd.append("%s '%s'" % (executable, escape_single_quotes(run_cmd)))
 
+        stdin_type = subprocess.PIPE if stdin is SSHHost.__SENTINEL or isinstance(stdin, basestring) else stdin
+
         ssh = subprocess.Popen(
             sshcmd,
-            stdin=subprocess.PIPE,
+            stdin=stdin_type,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
 
-        ssh.stdin.close()
+        if stdin_type == subprocess.PIPE:
+            if isinstance(stdin, basestring):
+                ssh.stdin.write(stdin)
+            ssh.stdin.close()
 
         (stdout, stderr) = multiproc.run_subproc(ssh, output_func=self.puts)
 
@@ -158,8 +166,8 @@ class SSHHost(object):
 
         return (stdout, stderr)
 
-    def run(self, command, cwd=None, output_running=False):
-        return self._run('/bin/bash -c', command, cwd, output_running)
+    def run(self, command, cwd=None, output_running=False, stdin=__SENTINEL):
+        return self._run('/bin/bash -c', command, cwd, output_running, stdin)
 
-    def sudo(self, command, cwd=None, output_running=False):
-        return self._run('sudo /bin/bash -c', command, cwd, output_running)
+    def sudo(self, command, cwd=None, output_running=False, stdin=__SENTINEL):
+        return self._run('sudo /bin/bash -c', command, cwd, output_running, stdin)
