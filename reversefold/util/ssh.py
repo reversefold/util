@@ -33,8 +33,7 @@ class SSHHost(object):
                  cipher='blowfish',
                  # Default to not checking host keys as cloud servers make it super annoying.
                  # Also default log level to ERROR so we don't see output about the host keys.
-                 check_host_keys=False, ssh_log_level='ERROR',
-                 force_tty=False):
+                 check_host_keys=False, ssh_log_level='ERROR'):
         self.host = host
         self.port = port
         self.user = user
@@ -43,7 +42,6 @@ class SSHHost(object):
         self.cipher = cipher
         self.check_host_keys = check_host_keys
         self.ssh_log_level = ssh_log_level
-        self.force_tty = force_tty
         self.host_prefix = '%s[%s%s%s%s%s%s%s]%s' % (
             Style.BRIGHT,
             Style.NORMAL,
@@ -79,7 +77,7 @@ class SSHHost(object):
         sys.stdout.write('%s %s' % (self.full_prefix, line))
         sys.stdout.flush()
 
-    def _get_ssh_options(self):
+    def _get_ssh_options(self, force_tty=False):
         ssh_options = [
             # compress
             '-C',
@@ -115,7 +113,7 @@ class SSHHost(object):
         if self.connect_timeout is not None:
             ssh_options.extend(['-o', 'ConnectTimeout=%s' % (self.connect_timeout,)])
 
-        if self.force_tty:
+        if force_tty:
             ssh_options.extend(['-t', '-t'])
 
         identity = os.environ.get('IDENTITY', '')
@@ -124,16 +122,19 @@ class SSHHost(object):
 
         return ssh_options
 
-    def _get_ssh_cmd(self):
+    def _get_ssh_cmd(self, force_tty=False):
         """Get the array needed to run subprocess.Popen with ssh"""
 
         sshcmd = ['ssh']
-        sshcmd.extend(self._get_ssh_options())
+        sshcmd.extend(self._get_ssh_options(force_tty))
         sshcmd.append(str(self.host))
 
         return sshcmd
 
-    def _start(self, executable, command, cwd=None, output_running=False, stdin=__SENTINEL, close_stdin=True):
+    def _start(
+        self, executable, command,
+        cwd=None, output_running=False, stdin=__SENTINEL, close_stdin=True, force_tty=False
+    ):
         cmds = []
         if cwd is not None:
             cmds.append("cd '%s'" % (escape_single_quotes(cwd),))
@@ -145,7 +146,7 @@ class SSHHost(object):
         if output_running:
             self.puts(run_cmd)
 
-        sshcmd = self._get_ssh_cmd()
+        sshcmd = self._get_ssh_cmd(force_tty)
         sshcmd.append("%s '%s'" % (executable, escape_single_quotes(run_cmd)))
 
         stdin_type = subprocess.PIPE if stdin is SSHHost.__SENTINEL or isinstance(stdin, basestring) else stdin
@@ -163,8 +164,8 @@ class SSHHost(object):
                 ssh.stdin.close()
         return ssh
 
-    def start(self, command, cwd=None, output_running=False, stdin=__SENTINEL, close_stdin=True):
-        proc = self._start('/bin/bash -c', command, cwd, output_running, stdin, close_stdin)
+    def start(self, command, cwd=None, output_running=False, stdin=__SENTINEL, close_stdin=True, force_tty=False):
+        proc = self._start('/bin/bash -c', command, cwd, output_running, stdin, close_stdin, force_tty)
         (stdout, stderr, threads) = multiproc.run_subproc(proc, output_func=self.puts, wait=False)
         return (proc, threads, stdout, stderr)
 
