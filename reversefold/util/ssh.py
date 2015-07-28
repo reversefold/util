@@ -163,7 +163,9 @@ class SSHHost(object):
         return ssh
 
     def start(self, command, cwd=None, output_running=False, stdin=__SENTINEL):
-        return self._start('/bin/bash -c', command, cwd, output_running, stdin)
+        proc = self._start('/bin/bash -c', command, cwd, output_running, stdin)
+        (stdout, stderr, threads) = multiproc.run_subproc(proc, output_func=self.puts, wait=False)
+        return (proc, threads, stdout, stderr)
 
     def _run(self, executable, command, cwd=None, output_running=False, stdin=__SENTINEL):
         """
