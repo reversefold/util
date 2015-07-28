@@ -33,7 +33,8 @@ class SSHHost(object):
                  cipher='blowfish',
                  # Default to not checking host keys as cloud servers make it super annoying.
                  # Also default log level to ERROR so we don't see output about the host keys.
-                 check_host_keys=False, ssh_log_level='ERROR'):
+                 check_host_keys=False, ssh_log_level='ERROR',
+                 force_terminal=False):
         self.host = host
         self.port = port
         self.user = user
@@ -42,6 +43,7 @@ class SSHHost(object):
         self.cipher = cipher
         self.check_host_keys = check_host_keys
         self.ssh_log_level = ssh_log_level
+        self.force_terminal = force_terminal
         self.host_prefix = '%s[%s%s%s%s%s%s%s]%s' % (
             Style.BRIGHT,
             Style.NORMAL,
@@ -113,6 +115,9 @@ class SSHHost(object):
         if self.connect_timeout is not None:
             ssh_options.extend(['-o', 'ConnectTimeout=%s' % (self.connect_timeout,)])
 
+        if self.force_terminal:
+            ssh_options.extend(['-t', '-t'])
+
         identity = os.environ.get('IDENTITY', '')
         if identity:
             ssh_options.extend(['-o', 'IdentityFile=%s' % (identity,)])
@@ -128,10 +133,7 @@ class SSHHost(object):
 
         return sshcmd
 
-    def _run(self, executable, command, cwd=None, output_running=False, stdin=__SENTINEL):
-        """
-        Runs command via ssh and executable.
-        """
+    def _start(self, executable, command, cwd=None, output_running=False, stdin=__SENTINEL):
         cmds = []
         if cwd is not None:
             cmds.append("cd '%s'" % (escape_single_quotes(cwd),))
@@ -158,7 +160,16 @@ class SSHHost(object):
             if isinstance(stdin, basestring):
                 ssh.stdin.write(stdin)
             ssh.stdin.close()
+        return ssh
 
+    def start(self, command, cwd=None, output_running=False, stdin=__SENTINEL):
+        return self._start('/bin/bash -c', command, cwd, output_running, stdin)
+
+    def _run(self, executable, command, cwd=None, output_running=False, stdin=__SENTINEL):
+        """
+        Runs command via ssh and executable.
+        """
+        ssh = self._start(executable, command, cwd, output_running, stdin)
         (stdout, stderr) = multiproc.run_subproc(ssh, output_func=self.puts)
 
         if ssh.returncode:
