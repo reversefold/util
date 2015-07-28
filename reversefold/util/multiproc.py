@@ -8,7 +8,7 @@ from colorama import Fore, Style
 DEFAULT_OUT_PREFIX = '%s[%s%sout%s%s]%s ' % (
     Style.BRIGHT, Style.NORMAL, Fore.GREEN, Fore.RESET, Style.BRIGHT, Style.NORMAL)
 DEFAULT_OUT_POSTFIX = ''
-DEFAULT_ERR_PREFIX= '%s[%s%serr%s%s]%s%s ' % (
+DEFAULT_ERR_PREFIX = '%s[%s%serr%s%s]%s%s ' % (
     Style.BRIGHT, Style.NORMAL, Fore.RED, Fore.RESET, Style.BRIGHT, Style.NORMAL, Fore.RED)
 DEFAULT_ERR_POSTFIX = Fore.RESET
 
