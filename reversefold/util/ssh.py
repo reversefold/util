@@ -133,7 +133,7 @@ class SSHHost(object):
 
         return sshcmd
 
-    def _start(self, executable, command, cwd=None, output_running=False, stdin=__SENTINEL):
+    def _start(self, executable, command, cwd=None, output_running=False, stdin=__SENTINEL, close_stdin=True):
         cmds = []
         if cwd is not None:
             cmds.append("cd '%s'" % (escape_single_quotes(cwd),))
@@ -159,11 +159,12 @@ class SSHHost(object):
         if stdin_type == subprocess.PIPE:
             if isinstance(stdin, basestring):
                 ssh.stdin.write(stdin)
-            ssh.stdin.close()
+            if close_stdin:
+                ssh.stdin.close()
         return ssh
 
-    def start(self, command, cwd=None, output_running=False, stdin=__SENTINEL):
-        proc = self._start('/bin/bash -c', command, cwd, output_running, stdin)
+    def start(self, command, cwd=None, output_running=False, stdin=__SENTINEL, close_stdin=True):
+        proc = self._start('/bin/bash -c', command, cwd, output_running, stdin, close_stdin)
         (stdout, stderr, threads) = multiproc.run_subproc(proc, output_func=self.puts, wait=False)
         return (proc, threads, stdout, stderr)
 
