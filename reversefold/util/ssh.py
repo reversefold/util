@@ -1,9 +1,5 @@
 import os
 import sys
-if hasattr(sys.stdout, 'fileno'):
-    # Force stdout to be line-buffered
-    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1)
-
 import subprocess
 
 from colorama import Fore, Style
