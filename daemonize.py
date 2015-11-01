@@ -20,8 +20,9 @@ import subprocess
 import threading
 
 import daemon
-import daemon.pidfile
+from daemon import runner
 from docopt import docopt
+from lockfile import pidlockfile, LockError
 
 from reversefold.util import multiproc
 
@@ -72,8 +73,26 @@ def main():
         err_logger, err_handler = get_logger('stderr', args['--stderr-log'])
         preserve.append(err_handler.stream)
 
+    if args['--pidfile'] is None:
+        pidfile = None
+    else:
+        acquire_pidfile_path = args['--pidfile'] + '.acquirelock'
+        pidfile = pidlockfile.PIDLockFile(args['--pidfile'], timeout=0)
+        # If the first pidfile is stale, use another pid lockfile to make sure we're not
+        # racing someone else. This lockfile should be far less likely to be stale since
+        # it is only kept during this check and breaking the stale lock.
+        try:
+            with pidlockfile.PIDLockFile(acquire_pidfile_path, timeout=0):
+                if runner.is_pidfile_stale(pidfile):
+                    print('Stale lockfile detected, breaking the stale lock %s' % (args['--pidfile'],))
+                    pidfile.break_lock()
+        except LockError:
+            print('Got an exception while attempting to check for a stale main pidfile.')
+            print('There is likely to be a stale acquire pidfile at %s' % (acquire_pidfile_path,))
+            raise
+
     with daemon.DaemonContext(
-        pidfile=None if args['--pidfile'] is None else daemon.pidfile.TimeoutPIDLockFile(args['--pidfile']),
+        pidfile=pidfile,
         working_directory=os.getcwd(),
         files_preserve=preserve,
     ):
