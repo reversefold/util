@@ -70,7 +70,9 @@ def main():
     args = docopt(__doc__)
     out_logger, out_handler = get_logger('stdout', args['--stdout-log'])
     preserve = [out_handler.stream]
-    if args['--stderr-log'] != 'STDOUT':
+    if args['--stderr-log'] == 'STDOUT':
+        err_logger = args['--stderr-log']
+    else:
         err_logger, err_handler = get_logger('stderr', args['--stderr-log'])
         preserve.append(err_handler.stream)
 
@@ -85,9 +87,9 @@ def main():
         try:
             with pidlockfile.PIDLockFile(acquire_pidfile_path, timeout=0):
                 if pidfile.is_locked():
-                if runner.is_pidfile_stale(pidfile):
-                    print('Stale lockfile detected, breaking the stale lock %s' % (args['--pidfile'],))
-                    pidfile.break_lock()
+                    if runner.is_pidfile_stale(pidfile):
+                        print('Stale lockfile detected, breaking the stale lock %s' % (args['--pidfile'],))
+                        pidfile.break_lock()
                     else:
                         print('Another process has already acquired the pidfile %s, daemon not started' % (
                             args['--pidfile'],))
