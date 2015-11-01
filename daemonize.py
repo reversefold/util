@@ -17,6 +17,7 @@ import logging
 import logging.handlers
 import os
 import subprocess
+import sys
 import threading
 
 import daemon
@@ -83,14 +84,25 @@ def main():
         # it is only kept during this check and breaking the stale lock.
         try:
             with pidlockfile.PIDLockFile(acquire_pidfile_path, timeout=0):
+                if pidfile.is_locked():
                 if runner.is_pidfile_stale(pidfile):
                     print('Stale lockfile detected, breaking the stale lock %s' % (args['--pidfile'],))
                     pidfile.break_lock()
+                    else:
+                        print('Another process has already acquired the pidfile %s, daemon not started' % (
+                            args['--pidfile'],))
+                        sys.exit(1)
         except LockError:
             print('Got an exception while attempting to check for a stale main pidfile.')
             print('There is likely to be a stale acquire pidfile at %s' % (acquire_pidfile_path,))
             raise
 
+    # There is a small chance of a race condition here which can cause multiple processes to try to acquire
+    # the pidfile. One will succeed and the others will fail but daemonize.py will exit with an exitcode of 0
+    # as the condition was not detected above. This could be fixed if we could start the DaemonContext within
+    # the acquire pidfile's lock context, but since DaemonContext calls os._exit the acquire pidfile will never
+    # be unlocked. If a solution can be found to keep the lock on the acquire pidfile until the main pidfile is
+    # acquired, then release the acquire pidfile, then the race condition would not exist.
     with daemon.DaemonContext(
         pidfile=pidfile,
         working_directory=os.getcwd(),
