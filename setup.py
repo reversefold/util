@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='reversefold.util',
-    version='1.12.0',
+    version='1.12.1',
     description='SSH, Multiproc, tail.py, log.py, stream.py',
     author='Justin Patrin',
     author_email='papercrane@reversefold.com',
@@ -16,7 +16,7 @@ setup(
         'colorama',
         'docopt',
         'lockfile',
-        'python-daemon',
+        'python-daemon==2.0.6',
         'watchdog',
     ],
 )
