@@ -4,8 +4,8 @@ from setuptools import setup, find_packages
 
 setup(
     name='reversefold.util',
-    version='1.12.1',
-    description='SSH, Multiproc, tail.py, log.py, stream.py',
+    version='1.12.2',
+    description='SSH, Multiproc, tail.py, log.py, stream.py, daemonize.py',
     author='Justin Patrin',
     author_email='papercrane@reversefold.com',
     url='https://github.com/reversefold/util',
