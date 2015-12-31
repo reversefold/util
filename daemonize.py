@@ -13,12 +13,14 @@ Options:
     -e --stderr-log=<stderr-log>  Path to log which will hold the stderr of the command [Default: log/stderr.log]
                                   The special value STDOUT will put this in the same log as the stdout output.
 """
+from datetime import datetime, timedelta
 import logging
 import logging.handlers
 import os
 import subprocess
 import sys
 import threading
+import time
 
 import daemon
 from daemon import runner
@@ -28,7 +30,7 @@ from lockfile import pidlockfile, LockError
 from reversefold.util import multiproc
 
 
-class NoNewlineStream(object):
+class TrimTrailingNewlinesStream(object):
     def __init__(self, stream):
         self.stream = stream
 
@@ -52,9 +54,9 @@ class WatchedFileHandlerVerbatim(logging.handlers.WatchedFileHandler):
         super(WatchedFileHandlerVerbatim, self).__init__(*a, **k)
         self.setFormatter(logging.Formatter('%(message)s'))
 
-    # overriding to patch the stream to not accept trailing newlines
+    # overriding to patch the stream to get rid of the trailing newlines added by the logging system
     def _open(self):
-        return NoNewlineStream(super(WatchedFileHandlerVerbatim, self)._open())
+        return TrimTrailingNewlinesStream(super(WatchedFileHandlerVerbatim, self)._open())
 
 
 def get_logger(name, filename):
@@ -122,9 +124,19 @@ def main():
             thread = threading.Thread(target=multiproc.Pipe(proc.stderr, err_logger.info).flow)
             thread.start()
             threads.append(thread)
-        proc.wait()
-        for thread in threads:
-            thread.join()
+        while proc.returncode is None:
+            time.sleep(0.1)
+            proc.poll()
+        start = datetime.now()
+        wait_time = timedelta(seconds=5)
+        while threads and datetime.now() - start < wait_time:
+            alive_threads = []
+            for thread in threads:
+                thread.join(timeout=0.1)
+                if thread.is_alive():
+                    alive_threads.append(thread)
+            threads = alive_threads
+        sys.exit()
 
 
 if __name__ == '__main__':
