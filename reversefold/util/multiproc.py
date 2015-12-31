@@ -20,6 +20,8 @@ class Pipe(object):
 
     def flow(self):
         while True:
+            # Using os.read here to try to be a bit less blocking than read() would be. Not sure if it makes
+            # a difference or not, though.
             data = os.read(self.input_stream.fileno(), 65536)
             if data == b'':
                 break
