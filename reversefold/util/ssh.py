@@ -84,6 +84,13 @@ class SSHHost(object):
             # Send a null packet every 5 seconds to make sure our connection stays
             # open as long as needed.
             '-o', 'ServerAliveInterval=5',
+
+            # Explicitly set ControlMaster and ControlPath to make sure that scripted SSH sessions don't accidentally
+            # clobber each other. (Imagine one SSH to a host starts, then a second one starts and the first ssh is
+            # stopped by the script before the second is finished. The first SSH session being terminated will terminate
+            # the second while it may still be running a command.)
+            '-o', 'ControlMaster=no',
+            '-o', 'ControlPath=none',
         ]
 
         if not self.check_host_keys:
