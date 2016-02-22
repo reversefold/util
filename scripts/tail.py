@@ -10,8 +10,8 @@ Options:
   --no-force-line-buffer                     Don't force stdout to be line-buffered.
   -l <count> --rate-limit=<count>            A limit to the number of lines to be output within rate-period [Default: 100]
   -p <seconds> --rate-period=<seconds>       The period in seconds that the rate-limit is applied to. [Default: 1]
-  -L <count> --each-rate-limit=<count>       A limit to the number of lines to be output within rate-period for each individual file [Default: 50]
-  -P <seconds> --each-rate-period=<seconds>  The period in seconds that the rate-limit is applied to for each individual file. [Default: 1]
+  -L <count> --each-rate-limit=<count>       A limit to the number of lines to be output within rate-period for each individual file [Default: ]
+  -P <seconds> --each-rate-period=<seconds>  The period in seconds that the rate-limit is applied to for each individual file. [Default: ]
 
 If more than `rate-limit` lines are received within `rate-period` seconds then a single line of "..." will be output and
 all subsequent lines received within that period will be ignored.
@@ -155,65 +155,83 @@ def follow(thefile):
             line = ''
 
 
-def tail(filename, line_queue, prefix=''):
+def tail(filename, line_queue, observer, prefix=''):
     if not os.path.exists(filename):
         sys.stderr.write('file %s does not exist\n' % (filename,))
         return
 
-    if TailHandler is None:
-        with reversefold.util.follow.Follower(filename) as follower:
-            for line in follower:
-                line_queue.handle_line(prefix + line)
-    else:
-        with open(filename, 'r') as thefile:
-            thefile.seek(0, 2)  # Go to the end of the file
-            filename = os.path.abspath(filename)
-            handler = TailHandler(filename, thefile, line_queue, prefix)
-            observer = Observer()
-            observer.schedule(handler, path=os.path.dirname(filename))
-            observer.start()
-            try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                observer.stop()
-            observer.join()
+    with reversefold.util.follow.Follower(filename) as follower:
+        for line in follower:
+            line_queue.handle_line(prefix + line)
 
 
 def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=None, each_rate_period=None):
+    if TailHandler is not None:
+        observer = Observer()
     prefix_len = max(len(f) for f in filenames) + 3
     threads = []
     stop = threading.Event()
     master = Master(stop, rate_limit, rate_period)
     master_thread = threading.Thread(target=master.run)
     master_thread.start()
-    for filename in filenames:
-        prefix = '[%s] ' % (filename,)
-        if len(prefix) < prefix_len:
-            prefix += ' ' * (prefix_len - len(prefix))
-        if each_rate_limit is None or each_rate_period is None:
-            line_queue = master.line_queue
-        else:
-            line_queue = LineQueue(stop, each_rate_limit, each_rate_period)
-            queue_chain = QueueChain(line_queue, master.line_queue, prefix + '...')
-            chain_thread = threading.Thread(target=queue_chain.run)
-            chain_thread.start()
-            threads.append(chain_thread)
-        thread = threading.Thread(target=tail, args=[filename, line_queue, prefix])
-        thread.daemon = True
-        thread.start()
-        threads.append(thread)
+    files = []
     try:
-        while threads:
-            for thread in threads:
-                thread.join(0.1)
-                if not thread.is_alive():
-                    threads.remove(thread)
-        stop.set()
-        master_thread.join()
-    except KeyboardInterrupt:
-        stop.set()
-        sys.exit(0)
+        for filename in filenames:
+            prefix = '[%s] ' % (filename,)
+            if len(prefix) < prefix_len:
+                prefix += ' ' * (prefix_len - len(prefix))
+            if each_rate_limit is None or each_rate_period is None:
+                line_queue = master.line_queue
+            else:
+                line_queue = LineQueue(stop, each_rate_limit, each_rate_period)
+                queue_chain = QueueChain(line_queue, master.line_queue, prefix + '...')
+                chain_thread = threading.Thread(target=queue_chain.run)
+                chain_thread.daemon = True
+                chain_thread.start()
+                threads.append(chain_thread)
+            if TailHandler is not None:
+                if not os.path.exists(filename):
+                    sys.stderr.write('file %s does not exist\n' % (filename,))
+                    continue
+                thefile = open(filename, 'r')
+                files.append(thefile)
+                thefile.seek(0, 2)  # Go to the end of the file
+                filename = os.path.abspath(filename)
+                handler = TailHandler(filename, thefile, line_queue, prefix)
+                observer.schedule(handler, path=os.path.dirname(filename))
+            else:
+                thread = threading.Thread(target=tail, args=[filename, line_queue, observer, prefix])
+                thread.daemon = True
+                thread.start()
+                threads.append(thread)
+        if observer is not None:
+            observer.start()
+        try:
+            if threads:
+                while threads:
+                    for thread in threads:
+                        thread.join(0.1)
+                        if not thread.is_alive():
+                            threads.remove(thread)
+            else:
+                while True:
+                    time.sleep(0.1)
+            stop.set()
+            if observer is not None:
+                observer.stop()
+                observer.join()
+            master_thread.join()
+        except KeyboardInterrupt:
+            sys.exit(0)
+        finally:
+            stop.set()
+            if observer is not None:
+                observer.stop()
+                observer.join()
+            master_thread.join()
+    finally:
+        for f in files:
+            f.close()
 
 
 def int_or_none(val):
