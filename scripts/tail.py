@@ -3,13 +3,15 @@
 
 Usage:
   tail.py -h | --help
-  tail.py [--no-force-line-buffer] [--rate-limit=<count> --rate-period=<seconds>] <filename>...
+  tail.py [--no-force-line-buffer] [--rate-limit=<count> --rate-period=<seconds>] [--each-rate-limit=<count> --each-rate-period=<seconds>] <filename>...
 
 Options:
-  -h --help                             Help.
-  --no-force-line-buffer                Don't force stdout to be line-buffered.
-  -l <count> --rate-limit=<count>       A limit to the number of lines to be output within rate-period [Default: 100]
-  -p <seconds> --rate-period=<seconds>  The period in seconds that the rate-limit is applied to. [Default: 1]
+  -h --help                                  Help.
+  --no-force-line-buffer                     Don't force stdout to be line-buffered.
+  -l <count> --rate-limit=<count>            A limit to the number of lines to be output within rate-period [Default: 100]
+  -p <seconds> --rate-period=<seconds>       The period in seconds that the rate-limit is applied to. [Default: 1]
+  -L <count> --each-rate-limit=<count>       A limit to the number of lines to be output within rate-period for each individual file [Default: 50]
+  -P <seconds> --each-rate-period=<seconds>  The period in seconds that the rate-limit is applied to for each individual file. [Default: 1]
 
 If more than `rate-limit` lines are received within `rate-period` seconds then a single line of "..." will be output and
 all subsequent lines received within that period will be ignored.
@@ -57,15 +59,12 @@ def rate_limit_gen(gen, period, limit):
         yield value
 
 
-class Master(object):
-    def __init__(self, rate_limit, rate_period):
+class LineQueue(object):
+    def __init__(self, stop, rate_limit=None, rate_period=None):
         self.queue = Queue()
-        self.stop = threading.Event()
+        self.stop = stop
         self.rate_limit = rate_limit
         self.rate_period = timedelta(seconds=rate_period)
-
-    def handle_line(self, line):
-        self.queue.put(line)
 
     def _line_gen(self):
         while not self.stop.is_set():
@@ -74,11 +73,38 @@ class Master(object):
             except Empty:
                 pass
 
-    def run(self):
+    def get_line_gen(self):
         gen = self._line_gen()
-        if self.rate_limit is not None and self.rate_period is not None:
-            gen = rate_limit_gen(gen, self.rate_period, self.rate_limit)
-        for line in gen:
+        if self.rate_limit is None or self.rate_period is None:
+            return gen
+        return rate_limit_gen(gen, self.rate_period, self.rate_limit)
+
+    def handle_line(self, line):
+        self.queue.put(line)
+
+
+class QueueChain(object):
+    def __init__(self, in_queue, out_queue, rate_limit_line=None):
+        self.in_queue = in_queue
+        self.out_queue = out_queue
+        self.rate_limit_line = rate_limit_line
+
+    def run(self):
+        # Note: No need of a stop event here as the in_queue will stop iterating when its stop event is set
+        for line in self.in_queue.get_line_gen():
+            if line is RATE_LIMIT_SENTINEL:
+                if self.rate_limit_line is None:
+                    continue
+                line = self.rate_limit_line
+            self.out_queue.handle_line(line)
+
+
+class Master(object):
+    def __init__(self, stop, rate_limit=None, rate_period=None):
+        self.line_queue = LineQueue(stop, rate_limit, rate_period)
+
+    def run(self):
+        for line in self.line_queue.get_line_gen():
             if line is RATE_LIMIT_SENTINEL:
                 line = '...'
             print(line)
@@ -89,13 +115,13 @@ try:
     from watchdog.observers import Observer
 
     class TailHandler(FileSystemEventHandler):
-        def __init__(self, filename, thefile, master, prefix=''):
+        def __init__(self, filename, thefile, line_queue, prefix=''):
             super(TailHandler, self).__init__()
             self.prefix = prefix
             self.filename = filename
             self.thefile = thefile
             self.line = ''
-            self.master = master
+            self.line_queue = line_queue
 
         def on_modified(self, event):
             if event.src_path != self.filename:
@@ -106,7 +132,7 @@ try:
                     return
                 self.line += new_line
                 if self.line[-1] == '\n':
-                    self.master.handle_line(self.prefix + self.line[:-1])
+                    self.line_queue.handle_line(self.prefix + self.line[:-1])
                     self.line = ''
 
 except ImportError:
@@ -127,7 +153,7 @@ def follow(thefile):
             line = ''
 
 
-def tail(filename, master, prefix=''):
+def tail(filename, line_queue, prefix=''):
     if not os.path.exists(filename):
         sys.stderr.write('file %s does not exist\n' % (filename,))
         return
@@ -135,12 +161,12 @@ def tail(filename, master, prefix=''):
     if TailHandler is None:
         with reversefold.util.follow.Follower(filename) as follower:
             for line in follower:
-                master.handle_line(prefix + line)
+                line_queue.handle_line(prefix + line)
     else:
         with open(filename, 'r') as thefile:
             thefile.seek(0, 2)  # Go to the end of the file
             filename = os.path.abspath(filename)
-            handler = TailHandler(filename, thefile, master, prefix)
+            handler = TailHandler(filename, thefile, line_queue, prefix)
             observer = Observer()
             observer.schedule(handler, path=os.path.dirname(filename))
             observer.start()
@@ -152,17 +178,26 @@ def tail(filename, master, prefix=''):
             observer.join()
 
 
-def tail_multiple(filenames, rate_limit=None, rate_period=None):
+def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=None, each_rate_period=None):
     prefix_len = max(len(f) for f in filenames) + 3
     threads = []
-    master = Master(rate_limit, rate_period)
+    stop = threading.Event()
+    master = Master(stop, rate_limit, rate_period)
     master_thread = threading.Thread(target=master.run)
     master_thread.start()
     for filename in filenames:
         prefix = '[%s] ' % (filename,)
         if len(prefix) < prefix_len:
             prefix += ' ' * (prefix_len - len(prefix))
-        thread = threading.Thread(target=tail, args=[filename, master, prefix])
+        if each_rate_limit is None or each_rate_period is None:
+            line_queue = master.line_queue
+        else:
+            line_queue = LineQueue(stop, each_rate_limit, each_rate_period)
+            queue_chain = QueueChain(line_queue, master.line_queue, prefix + '...')
+            chain_thread = threading.Thread(target=queue_chain.run)
+            chain_thread.start()
+            threads.append(chain_thread)
+        thread = threading.Thread(target=tail, args=[filename, line_queue, prefix])
         thread.daemon = True
         thread.start()
         threads.append(thread)
@@ -172,11 +207,15 @@ def tail_multiple(filenames, rate_limit=None, rate_period=None):
                 thread.join(0.1)
                 if not thread.is_alive():
                     threads.remove(thread)
-        master.stop.set()
+        stop.set()
         master_thread.join()
     except KeyboardInterrupt:
-        master.stop.set()
+        stop.set()
         sys.exit(0)
+
+
+def int_or_none(val):
+    return None if val is None else int(val)
 
 
 def main():
@@ -184,9 +223,15 @@ def main():
     if not args['--no-force-line-buffer']:
         if hasattr(sys.stdout, 'fileno'):
             sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1)
-    rate_limit = int(args['--rate-limit']) if args['--rate-limit'] is not None else None
-    rate_period = int(args['--rate-period']) if args['--rate-period'] is not None else None
-    tail_multiple(args['<filename>'], rate_limit=rate_limit, rate_period=rate_period)
+    rate_limit = int_or_none(args['--rate-limit'])
+    rate_period = int_or_none(args['--rate-period'])
+    each_rate_limit = int_or_none(args['--each-rate-limit'])
+    each_rate_period = int_or_none(args['--each-rate-period'])
+    tail_multiple(
+        args['<filename>'],
+        rate_limit=rate_limit, rate_period=rate_period,
+        each_rate_limit=each_rate_limit, each_rate_period=each_rate_period
+    )
 
 
 if __name__ == '__main__':
