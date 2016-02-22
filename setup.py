@@ -10,7 +10,7 @@ setup(
     author_email='papercrane@reversefold.com',
     url='https://github.com/reversefold/util',
     packages=find_packages(),
-    scripts=['tail.py', 'log.py', 'stream.py', 'daemonize.py'],
+    scripts=['scripts/tail.py', 'scripts/log.py', 'scripts/stream.py', 'scripts/daemonize.py'],
     license='MIT',
     install_requires=[
         'colorama',
