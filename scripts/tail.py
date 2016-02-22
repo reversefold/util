@@ -3,7 +3,7 @@
 
 Usage:
   tail.py -h | --help
-  tail.py <filename>...
+  tail.py [--no-force-line-buffer] <filename>...
 
 Options:
   -h --help              Help.
@@ -109,6 +109,13 @@ def tail_multiple(*filenames):
         sys.exit(0)
 
 
-if __name__ == '__main__':
+def main():
     args = docopt(__doc__)
+    if not args['--no-force-line-buffer']:
+        if hasattr(sys.stdout, 'fileno'):
+            sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1)
     tail_multiple(*args['<filename>'])
+
+
+if __name__ == '__main__':
+    main()
