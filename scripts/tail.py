@@ -3,7 +3,7 @@
 
 Usage:
   tail.py -h | --help
-  tail.py [--no-force-line-buffer] [--rate-limit=<count> --rate-period=<seconds>] [--each-rate-limit=<count> --each-rate-period=<seconds>] <filename>...
+  tail.py [--no-force-line-buffer] [--rate-limit=<count>] [--rate-period=<seconds>] [--each-rate-limit=<count>] [--each-rate-period=<seconds>] <filename>...
 
 Options:
   -h --help                                  Help.
@@ -15,6 +15,8 @@ Options:
 
 If more than `rate-limit` lines are received within `rate-period` seconds then a single line of "..." will be output and
 all subsequent lines received within that period will be ignored.
+
+Each of the rate options supports an empty value to disable the rate limiting.
 """
 from __future__ import print_function
 from datetime import datetime, timedelta
@@ -64,7 +66,7 @@ class LineQueue(object):
         self.queue = Queue()
         self.stop = stop
         self.rate_limit = rate_limit
-        self.rate_period = timedelta(seconds=rate_period)
+        self.rate_period = None if rate_period is None else timedelta(seconds=rate_period)
 
     def _line_gen(self):
         while not self.stop.is_set():
@@ -215,7 +217,7 @@ def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=
 
 
 def int_or_none(val):
-    return None if val is None else int(val)
+    return None if val is None or val == '' else int(val)
 
 
 def main():
