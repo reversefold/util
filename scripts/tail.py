@@ -155,7 +155,7 @@ def follow(thefile):
             line = ''
 
 
-def tail(filename, line_queue, observer, prefix=''):
+def tail(filename, line_queue, prefix=''):
     if not os.path.exists(filename):
         sys.stderr.write('file %s does not exist\n' % (filename,))
         return
@@ -200,7 +200,7 @@ def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=
                 handler = TailHandler(filename, thefile, line_queue, prefix)
                 observer.schedule(handler, path=os.path.dirname(filename))
             else:
-                thread = threading.Thread(target=tail, args=[filename, line_queue, observer, prefix])
+                thread = threading.Thread(target=tail, args=[filename, line_queue, prefix])
                 thread.daemon = True
                 thread.start()
                 threads.append(thread)
