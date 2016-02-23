@@ -71,7 +71,7 @@ class LineQueue(object):
     def _line_gen(self):
         while not self.stop.is_set():
             try:
-                yield self.queue.get(block=False, timeout=0.1)
+                yield self.queue.get(block=True, timeout=0.1)
             except Empty:
                 pass
 
