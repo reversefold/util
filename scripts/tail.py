@@ -19,7 +19,7 @@ all subsequent lines received within that period will be ignored.
 Each of the rate options supports an empty value to disable the rate limiting.
 """
 from __future__ import print_function
-from datetime import datetime, timedelta
+from datetime import timedelta
 import os
 from Queue import Empty, Queue
 import sys
@@ -29,36 +29,13 @@ import time
 from docopt import docopt
 
 import reversefold.util.follow
+from reversefold.util import rate_limit_gen, RATE_LIMIT_SENTINEL
 
 # TODO: Add option to output partial lines after 1s of being buffered.
 #       Keep partial line in buffer to output with more data later.
-# TODO: Rate limiting. If more than N lines within 1s, drop remaining.
-#       Support this overall and per-file?
 # TODO: Handle file truncation
 # TODO: Handle file disappearing
 # TODO: Handle file appearing
-
-
-RATE_LIMIT_SENTINEL = object()
-
-
-def rate_limit_gen(gen, period, limit):
-    start = datetime.now()
-    # start at -1 since we pre-increment below and we actually want to allow up to `limit` values to be generated
-    # within `period` before we yield RATE_LIMIT_SENTINEL.
-    count = -1
-    for value in gen:
-        count += 1
-        if datetime.now() - start < period:
-            if count == limit:
-                yield RATE_LIMIT_SENTINEL
-                continue
-            elif count > limit:
-                continue
-        else:
-            start = datetime.now()
-            count = 0
-        yield value
 
 
 class LineQueue(object):
@@ -160,7 +137,7 @@ def tail(filename, line_queue, prefix=''):
         sys.stderr.write('file %s does not exist\n' % (filename,))
         return
 
-    with reversefold.util.follow.Follower(filename) as follower:
+    with reversefold.util.follow.LineFollower(filename, tail_only=True) as follower:
         for line in follower:
             line_queue.handle_line(prefix + line)
 
