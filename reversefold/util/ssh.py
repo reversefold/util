@@ -30,7 +30,7 @@ class SSHHost(object):
                  # Default to not checking host keys as cloud servers make it super annoying.
                  # Also default log level to ERROR so we don't see output about the host keys.
                  check_host_keys=False, ssh_log_level='ERROR',
-                 identity=None):
+                 identity=None, use_color=True):
         self.host = host
         self.port = port
         self.user = user
@@ -43,16 +43,17 @@ class SSHHost(object):
             self.identity = os.environ.get('IDENTITY', None)
         else:
             self.identity = identity
+        self.use_color = use_color
         self.host_prefix = '%s[%s%s%s%s%s%s%s]%s' % (
-            Style.BRIGHT,
-            Style.NORMAL,
-            Fore.LIGHTBLUE_EX,
+            Style.BRIGHT if self.use_color else '',
+            Style.NORMAL if self.use_color else '',
+            Fore.LIGHTBLUE_EX if self.use_color else '',
             '%s@' % (user,) if user is not None else '',
             host,
             ':%s' % (port,) if port is not None else '',
-            Fore.RESET,
-            Style.BRIGHT,
-            Style.NORMAL,
+            Fore.RESET if self.use_color else '',
+            Style.BRIGHT if self.use_color else '',
+            Style.NORMAL if self.use_color else '',
         )
         l = (len(self.host_prefix) - len(Style.BRIGHT) * 2 - len(Style.NORMAL) * 2
              - len(Fore.LIGHTBLUE_EX) - len(Fore.RESET))
@@ -172,25 +173,35 @@ class SSHHost(object):
                 ssh.stdin.close()
         return ssh
 
-    def start(self, command, cwd=None, output_running=False, stdin=__SENTINEL, close_stdin=True, force_tty=False):
-        proc = self._start('/bin/bash -c', command, cwd, output_running, stdin, close_stdin, force_tty)
-        (stdout, stderr, threads) = multiproc.run_subproc(proc, output_func=self.puts, wait=False)
+    def start(
+        self, command,
+        cwd=None, output_running=False, stdin=__SENTINEL, close_stdin=True, force_tty=False, capture_output=False,
+    ):
+        proc = self._start('/bin/bash -c', command, cwd, output_running, stdin, close_stdin, force_tty, capture_output)
+        (stdout, stderr, threads) = multiproc.run_subproc(
+            proc, output_func=self.puts, wait=False, capture_output=capture_output, use_color=self.use_color
+        )
         return (proc, threads, stdout, stderr)
 
-    def _run(self, executable, command, cwd=None, output_running=False, stdin=__SENTINEL):
+    def _run(
+        self, executable, command,
+        cwd=None, output_running=False, stdin=__SENTINEL, capture_output=False
+    ):
         """
         Runs command via ssh and executable.
         """
         ssh = self._start(executable, command, cwd, output_running, stdin)
-        (stdout, stderr) = multiproc.run_subproc(ssh, output_func=self.puts)
+        (stdout, stderr) = multiproc.run_subproc(
+            ssh, output_func=self.puts, capture_output=capture_output, use_color=self.use_color
+        )
 
         if ssh.returncode:
             raise SSHException("ssh return code was %r" % (ssh.returncode,))
 
         return (stdout, stderr)
 
-    def run(self, command, cwd=None, output_running=False, stdin=__SENTINEL):
-        return self._run('/bin/bash -c', command, cwd, output_running, stdin)
+    def run(self, command, cwd=None, output_running=False, stdin=__SENTINEL, capture_output=True):
+        return self._run('/bin/bash -c', command, cwd, output_running, stdin, capture_output)
 
-    def sudo(self, command, cwd=None, output_running=False, stdin=__SENTINEL):
-        return self._run('sudo /bin/bash -c', command, cwd, output_running, stdin)
+    def sudo(self, command, cwd=None, output_running=False, stdin=__SENTINEL, capture_output=True):
+        return self._run('sudo /bin/bash -c', command, cwd, output_running, stdin, capture_output)
