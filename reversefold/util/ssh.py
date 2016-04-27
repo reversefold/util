@@ -29,7 +29,8 @@ class SSHHost(object):
                  cipher='blowfish',
                  # Default to not checking host keys as cloud servers make it super annoying.
                  # Also default log level to ERROR so we don't see output about the host keys.
-                 check_host_keys=False, ssh_log_level='ERROR'):
+                 check_host_keys=False, ssh_log_level='ERROR',
+                 identity=None):
         self.host = host
         self.port = port
         self.user = user
@@ -38,6 +39,10 @@ class SSHHost(object):
         self.cipher = cipher
         self.check_host_keys = check_host_keys
         self.ssh_log_level = ssh_log_level
+        if identity is None:
+            self.identity = os.environ.get('IDENTITY', None)
+        else:
+            self.identity = identity
         self.host_prefix = '%s[%s%s%s%s%s%s%s]%s' % (
             Style.BRIGHT,
             Style.NORMAL,
@@ -68,6 +73,7 @@ class SSHHost(object):
         ### TODO: This was written a while ago and I can't specifically remember
         ###       the original issue, but I know that this was the best way I
         ###       could find to ensure that no text errors happened.
+        # TODO: Perhaps try setting LC_ALL or other locale/encoding/charset vars?
         line = line.encode('ascii', 'replace')
 
         sys.stdout.write('%s %s' % (self.full_prefix, line))
@@ -119,9 +125,8 @@ class SSHHost(object):
         if force_tty:
             ssh_options.extend(['-t', '-t'])
 
-        identity = os.environ.get('IDENTITY', '')
-        if identity:
-            ssh_options.extend(['-o', 'IdentityFile=%s' % (identity,)])
+        if self.identity is not None:
+            ssh_options.extend(['-o', 'IdentityFile=%s' % (self.identity,)])
 
         return ssh_options
 
