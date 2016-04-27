@@ -1,4 +1,10 @@
 from datetime import datetime
+import logging
+import os
+import sys
+
+
+LOG = logging.getLogger(__name__)
 
 
 RATE_LIMIT_SENTINEL = object()
@@ -39,3 +45,11 @@ def chunked(seq, chunk_size):
             i = 0
     if i > 0:
         yield chunk
+
+
+def force_stdout_line_buffer():
+    if hasattr(sys.stdout, 'fileno'):
+        # Force stdout to be line-buffered
+        sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1)
+    else:
+        LOG.warning('sys.stdout has no fileno attribute, it cannot be line-buffered')
