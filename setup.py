@@ -4,8 +4,8 @@ from setuptools import setup, find_packages
 
 setup(
     name='reversefold.util',
-    version='1.14.0',
-    description='SSH, Multiproc, tail.py, log.py, stream.py, daemonize.py, etc.',
+    version='1.15.0',
+    description='SSH, Proc, Multiproc, tail.py, log.py, stream.py, daemonize.py, etc.',
     author='Justin Patrin',
     author_email='papercrane@reversefold.com',
     url='https://github.com/reversefold/util',
@@ -17,6 +17,7 @@ setup(
         'docopt',
         'lockfile',
         'python-daemon==2.1.1',
+        'psutil',
         'watchdog',
     ],
 )
