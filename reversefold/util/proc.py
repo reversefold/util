@@ -7,6 +7,10 @@ import psutil
 LOG = logging.getLogger(__name__)
 
 
+# TODO: support arbitrary signals, not just TERM and KILL.
+# Potentially support lists of signals (with wait times for graceful shutdown?).
+
+
 def _signal_processes(procs, func_name):
     for proc in procs:
         if proc.is_running():
@@ -27,7 +31,7 @@ def get_process_tree(pid):
 
 
 @contextlib.contextmanager
-def signalling(proc, signal_func_name, recursive=False):
+def signalling(proc, signal_func_name, recursive=False, _procs=None):
     exc = False
     try:
         yield proc
@@ -38,6 +42,11 @@ def signalling(proc, signal_func_name, recursive=False):
         try:
             if recursive:
                 procs = get_process_tree(proc.pid)
+                # if _procs was passed in, add our processes to the list and use the combined list for signalling below
+                if _procs is not None:
+                    for child in procs:
+                        _procs.add(child)
+                    procs = list(_procs)
             else:
                 try:
                     procs = [psutil.Process(proc.pid)]
@@ -51,9 +60,23 @@ def signalling(proc, signal_func_name, recursive=False):
                 raise
 
 
-def terminating(proc, recursive=False):
-    return signalling(proc, 'terminate', recursive=recursive)
+def terminating(proc, recursive=False, _procs=None):
+    return signalling(proc, 'terminate', recursive=recursive, _procs=_procs)
 
 
-def killing(proc, recursive=False):
-    return signalling(proc, 'kill', recursive=recursive)
+def killing(proc, recursive=False, _procs=None):
+    return signalling(proc, 'kill', recursive=recursive, _procs=_procs)
+
+
+@contextlib.contextmanager
+def dead(proc, recursive=False):
+    if recursive:
+        # This object is passed into the killing and terminating contextmanagers, allowing them to pass the list of
+        # processes they are working on between them so that if the parent process dies in the terminating context
+        # manager but a child process does not die, it will still get the kill signal from the killing contextmanager.
+        procs = set()
+    else:
+        procs = None
+    with killing(proc, recursive=recursive, _procs=procs) as kproc:
+        with terminating(kproc, recursive=recursive, _procs=procs) as tproc:
+            yield tproc
