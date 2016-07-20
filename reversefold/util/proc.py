@@ -30,6 +30,7 @@ def get_process_tree(pid):
     return [proc] + proc.children(recursive=True)
 
 
+# Supports any process object with a pid attribute, so supports at least psutil.Process and subprocess.Popen objects.
 @contextlib.contextmanager
 def signalling(proc, signal_func_name, recursive=False, _procs=None):
     exc = False
@@ -80,3 +81,18 @@ def dead(proc, recursive=False):
     with killing(proc, recursive=recursive, _procs=procs) as kproc:
         with terminating(kproc, recursive=recursive, _procs=procs) as tproc:
             yield tproc
+
+
+def terminate(proc, recursive=False):
+    with terminating(proc, recursive=recursive):
+        pass
+
+
+def kill(proc, recursive=False):
+    with killing(proc, recursive=recursive):
+        pass
+
+
+def die(proc, recursive=False):
+    with dead(proc, recursive=recursive):
+        pass
