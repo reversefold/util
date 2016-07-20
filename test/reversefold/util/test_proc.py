@@ -123,3 +123,35 @@ class TestProc(unittest.TestCase):
         mock_ps_proc.is_running.assert_has_calls([mock.call(), mock.call()], any_order=True)
         mock_ps_proc.terminate.assert_called_once()
         mock_ps_proc.kill.assert_called_once()
+
+    def test_dead(self):
+        mock_proc = mock.MagicMock()
+        mock_proc.pid = 123
+        mock_ps_proc = mock.MagicMock()
+        self.psutil_Process.return_value = mock_ps_proc
+        mock_ps_proc.is_running.return_value = True
+
+        with proc.dead(mock_proc) as mock_proc_as:
+            self.assertEqual(mock_proc_as, mock_proc)
+
+        self.psutil_Process.assert_has_calls([mock.call(123), mock.call(123)], any_order=True)
+        mock_ps_proc.is_running.assert_has_calls([mock.call(), mock.call()], any_order=True)
+        mock_ps_proc.terminate.assert_called_once()
+        mock_ps_proc.kill.assert_called_once()
+
+    def test_dead_kills_abandoned_children(self):
+        mock_proc = mock.MagicMock()
+        mock_proc.pid = 123
+        mock_ps_proc = mock.MagicMock()
+        mock_child_ps_proc = mock.MagicMock()
+        mock_child_ps_proc.is_running.return_value = True
+        get_process_tree = mock.patch('reversefold.util.proc.get_process_tree').start()
+        get_process_tree.side_effect = [[mock_ps_proc, mock_child_ps_proc], []]
+        mock_ps_proc.is_running.return_value = True
+
+        with proc.dead(mock_proc, recursive=True) as mock_proc_as:
+            self.assertEqual(mock_proc_as, mock_proc)
+
+        mock_ps_proc.terminate.assert_called_once()
+        mock_child_ps_proc.terminate.assert_called_once()
+        mock_child_ps_proc.kill.assert_called_once()
