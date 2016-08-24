@@ -177,7 +177,7 @@ class SSHHost(object):
         self, command,
         cwd=None, output_running=False, stdin=__SENTINEL, close_stdin=True, force_tty=False, capture_output=False,
     ):
-        proc = self._start('/bin/bash -c', command, cwd, output_running, stdin, close_stdin, force_tty, capture_output)
+        proc = self._start('/bin/bash -c', command, cwd, output_running, stdin, close_stdin, force_tty)
         (stdout, stderr, threads) = multiproc.run_subproc(
             proc, output_func=self.puts, wait=False, capture_output=capture_output, use_color=self.use_color
         )
