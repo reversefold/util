@@ -10,7 +10,12 @@ setup(
     author_email='papercrane@reversefold.com',
     url='https://github.com/reversefold/util',
     packages=find_packages(),
-    scripts=['scripts/tail.py', 'scripts/log.py', 'scripts/stream.py'],
+    scripts=[
+        'scripts/tail.py',
+        'scripts/log.py',
+        'scripts/stream.py',
+        'scripts/sort_json.py',
+    ],
     entry_points={
         'console_scripts': [
             'daemonize.py = reversefold.util.daemonize:main'
