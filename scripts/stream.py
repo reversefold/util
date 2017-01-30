@@ -13,6 +13,7 @@ Options:
     --bufsize=<bufsize> The number of bytes that will be attempted to be read
                         at a time. [Default: 1024]
 """
+from __future__ import print_function
 import os
 import sys
 
@@ -34,22 +35,26 @@ def main():
             try:
                 for data in follower:
                     sys.stdout.write(data)
+                    sys.stdout.flush()
             except KeyboardInterrupt:
                 follower.finish = True
-            for data in follower:
-                sys.stdout.write(data)
+                for data in follower:
+                    sys.stdout.write(data)
                 sys.stdout.flush()
+                raise
+
     else:
         with follow.LineFollower(
             args['<filename>'], args['--tail']
         ) as follower:
             try:
                 for data in follower:
-                    print data
+                    print(data)
             except KeyboardInterrupt:
                 follower.finish = True
-            for data in follower:
-                print data
+                for data in follower:
+                    print(data)
+                raise
 
 
 if __name__ == '__main__':
