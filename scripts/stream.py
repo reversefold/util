@@ -27,9 +27,10 @@ def main():
         if hasattr(sys.stdout, 'fileno'):
             # Force stdout to be un-buffered
             sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
-        follower = follow.Follower(
-            args['<filename>'], args['--tail'], int(args['--bufsize']))
-        with follower:
+
+        with follow.Follower(
+            args['<filename>'], args['--tail'], int(args['--bufsize'])
+        ) as follower:
             try:
                 for data in follower:
                     sys.stdout.write(data)
@@ -39,8 +40,9 @@ def main():
                 sys.stdout.write(data)
                 sys.stdout.flush()
     else:
-        follower = follow.LineFollower(args['<filename>'], args['--tail'])
-        with follower:
+        with follow.LineFollower(
+            args['<filename>'], args['--tail']
+        ) as follower:
             try:
                 for data in follower:
                     print data
