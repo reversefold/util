@@ -4,7 +4,7 @@
 This script will exit when the command exits.
 
 Usage:
-    daemonize.py [--pidfile=<pidfile>] [--stdout-log=<stdout-log>] [--stderr-log=<stderr-log>] [--log-format=<fmt> [--date-format=<fmt>]] -- <command>...
+    %(script)s [--pidfile=<pidfile>] [--stdout-log=<stdout-log>] [--stderr-log=<stderr-log>] [--log-format=<fmt> [--date-format=<fmt>]] -- <command>...
 
 Options:
     -h --help                     Show this help text.
@@ -12,12 +12,12 @@ Options:
     -o --stdout-log=<stdout-log>  Path to log which will hold the stdout of the command [Default: log/stdout.log]
     -e --stderr-log=<stderr-log>  Path to log which will hold the stderr of the command [Default: log/stderr.log]
                                   The special value STDOUT will put this in the same log as the stdout output.
-    --log-format=<fmt>            The format that will be applied to the stdout and stderr logs. [Default: %(message)s]
+    --log-format=<fmt>            The format that will be applied to the stdout and stderr logs. [Default: %%(message)s]
                                   For example, if you wanted to prepend a timestamp to each line you could use:
-                                  %(asctime)s %(message)s
-    --date-format=<fmt>           The format to apply to the logging timestamp [Default: %Y-%m-%d %H:%M:%S]
+                                  %%(asctime)s %%(message)s
+    --date-format=<fmt>           The format to apply to the logging timestamp [Default: %%Y-%%m-%%d %%H:%%M:%%S]
                                   Note that this option won't take effect unless --log-format is given with a date
-                                  identifier (like %(asctime)s) in it.
+                                  identifier (like %%(asctime)s) in it.
 """
 from __future__ import print_function
 from datetime import datetime, timedelta
@@ -79,7 +79,7 @@ def get_logger(name, filename, log_format, date_format):
 
 
 def main():
-    args = docopt(__doc__)
+    args = docopt(__doc__ % {'script': os.path.basename(__file__)})
     out_logger, out_handler = get_logger(
         'stdout',
         args['--stdout-log'],
