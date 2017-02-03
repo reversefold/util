@@ -4,7 +4,7 @@
 This script will exit when the command exits.
 
 Usage:
-    daemonize.py [--pidfile=<pidfile>] [--stdout-log=<stdout-log>] [--stderr-log=<stderr-log>] -- <command>...
+    daemonize.py [--pidfile=<pidfile>] [--stdout-log=<stdout-log>] [--stderr-log=<stderr-log>] [--log-format=<fmt> [--date-format=<fmt>]] -- <command>...
 
 Options:
     -h --help                     Show this help text.
@@ -12,7 +12,14 @@ Options:
     -o --stdout-log=<stdout-log>  Path to log which will hold the stdout of the command [Default: log/stdout.log]
     -e --stderr-log=<stderr-log>  Path to log which will hold the stderr of the command [Default: log/stderr.log]
                                   The special value STDOUT will put this in the same log as the stdout output.
+    --log-format=<fmt>            The format that will be applied to the stdout and stderr logs. [Default: %(message)s]
+                                  For example, if you wanted to prepend a timestamp to each line you could use:
+                                  %(asctime)s %(message)s
+    --date-format=<fmt>           The format to apply to the logging timestamp [Default: %Y-%m-%d %H:%M:%S]
+                                  Note that this option won't take effect unless --log-format is given with a date
+                                  identifier (like %(asctime)s) in it.
 """
+from __future__ import print_function
 from datetime import datetime, timedelta
 import logging
 import logging.handlers
@@ -51,16 +58,19 @@ class TrimTrailingNewlinesStream(object):
 
 class WatchedFileHandlerVerbatim(logging.handlers.WatchedFileHandler):
     def __init__(self, *a, **k):
+        log_format = k.pop('log_format')
+        date_format = k.pop('date_format')
         super(WatchedFileHandlerVerbatim, self).__init__(*a, **k)
-        self.setFormatter(logging.Formatter('%(message)s'))
+        formatter = logging.Formatter(log_format, datefmt=date_format)
+        self.setFormatter(formatter)
 
     # overriding to patch the stream to get rid of the trailing newlines added by the logging system
     def _open(self):
         return TrimTrailingNewlinesStream(super(WatchedFileHandlerVerbatim, self)._open())
 
 
-def get_logger(name, filename):
-    handler = WatchedFileHandlerVerbatim(filename)
+def get_logger(name, filename, log_format, date_format):
+    handler = WatchedFileHandlerVerbatim(filename, log_format=log_format, date_format=date_format)
     handler.setLevel(logging.INFO)
     logger = logging.getLogger('daemonize.%s' % (name,))
     logger.setLevel(logging.INFO)
@@ -70,12 +80,22 @@ def get_logger(name, filename):
 
 def main():
     args = docopt(__doc__)
-    out_logger, out_handler = get_logger('stdout', args['--stdout-log'])
+    out_logger, out_handler = get_logger(
+        'stdout',
+        args['--stdout-log'],
+        args['--log-format'],
+        args['--date-format']
+    )
     preserve = [out_handler.stream]
     if args['--stderr-log'] == 'STDOUT':
         err_logger = args['--stderr-log']
     else:
-        err_logger, err_handler = get_logger('stderr', args['--stderr-log'])
+        err_logger, err_handler = get_logger(
+            'stderr',
+            args['--stderr-log'],
+            args['--log-format'],
+            args['--date-format']
+        )
         preserve.append(err_handler.stream)
 
     if args['--pidfile'] is None:
