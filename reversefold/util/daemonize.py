@@ -15,9 +15,13 @@ Options:
     --log-format=<fmt>            The format that will be applied to the stdout and stderr logs. [Default: %%(message)s]
                                   For example, if you wanted to prepend a timestamp to each line you could use:
                                   %%(asctime)s %%(message)s
+                                  For a full reference see the Python documentation:
+                                  https://docs.python.org/2/library/logging.html#logrecord-attributes
     --date-format=<fmt>           The format to apply to the logging timestamp [Default: %%Y-%%m-%%d %%H:%%M:%%S]
                                   Note that this option won't take effect unless --log-format is given with a date
                                   identifier (like %%(asctime)s) in it.
+                                  For a full reference see the Python documentation:
+                                  https://docs.python.org/2/library/datetime.html#strftime-strptime-behavior
 """
 from __future__ import print_function
 from datetime import datetime, timedelta
