@@ -18,7 +18,7 @@ def _signal_processes(procs, func_name):
                 getattr(proc, func_name)()
             except psutil.NoSuchProcess:
                 pass
-            except Exception, e:
+            except Exception as e:
                 LOG.error('Exception running %s on %r: %r', func_name, proc, e)
 
 
@@ -54,7 +54,7 @@ def signalling(proc, signal_func_name, recursive=False, _procs=None):
                 except psutil.NoSuchProcess:
                     procs = []
             _signal_processes(procs, signal_func_name)
-        except Exception, e:
+        except Exception as e:
             if exc:
                 LOG.exception('Exception calling %s on %r: %r', signal_func_name, procs, e)
             else:

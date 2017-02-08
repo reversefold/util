@@ -53,7 +53,7 @@ def mysqlping(hostname, port=3306, username=None, password=None):
                 cur.execute('SELECT NOW()')
                 log('Ping %r' % (cur.fetchone(),))
                 time.sleep(1)
-        except Exception, e:
+        except Exception as e:
             if down_start is None:
                 down_start = datetime.datetime.now()
             log('Down for %s so far: %s' % (datetime.datetime.now() - down_start, e))

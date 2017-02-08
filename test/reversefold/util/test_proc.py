@@ -31,7 +31,7 @@ class TestProc(unittest.TestCase):
 
     def test_get_process_tree_with_children(self):
         mock_proc = mock.MagicMock()
-        mock_procs = [mock.MagicMock() for _ in xrange(3)]
+        mock_procs = [mock.MagicMock() for _ in range(3)]
         self.psutil_Process.return_value = mock_proc
         mock_proc.children.return_value = mock_procs
 
@@ -55,7 +55,7 @@ class TestProc(unittest.TestCase):
         proc._signal_processes([], '')
 
     def test__signal_processes(self):
-        mock_procs = [mock.MagicMock() for _ in xrange(4)]
+        mock_procs = [mock.MagicMock() for _ in range(4)]
         mock_procs[0].is_running.return_value = False
         mock_procs[1].is_running.return_value = True
         mock_procs[1].signal_func.side_effect = psutil.NoSuchProcess('')
