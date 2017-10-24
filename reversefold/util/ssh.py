@@ -25,8 +25,9 @@ class SSHHost(object):
 
     def __init__(self, host, port=None, user=None, output_prefix='', prefix_pad_length=28,
                  connect_timeout=5,
-                 # Default to the blowfish cipher for speed
-                 cipher='blowfish',
+                 # Default to no specific cipher to allow the client and server to negotiate one.
+                 # Can be used to force a specific cipher.
+                 cipher=None,
                  # Default to not checking host keys as cloud servers make it super annoying.
                  # Also default log level to ERROR so we don't see output about the host keys.
                  check_host_keys=False, ssh_log_level='ERROR',
