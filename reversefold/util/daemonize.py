@@ -4,11 +4,15 @@
 This script will exit when the command exits.
 
 Usage:
-    %(script)s [--pidfile=<pidfile>] [--stdout-log=<stdout-log>] [--stderr-log=<stderr-log>] [--log-format=<fmt> [--date-format=<fmt>]] -- <command>...
+    %(script)s [--stdout-log=<stdout-log>] [--stderr-log=<stderr-log>]
+               [--pidfile=<pidfile>] [--app-pidfile=<pidfile>]
+               [--log-format=<fmt> [--date-format=<fmt>]]
+               -- <command>...
 
 Options:
     -h --help                     Show this help text.
     -p --pidfile=<pidfile>        Path to a pidfile which will hold this script's pid (not the underlying process).
+    -d --app-pidfile=<pidfile>    Path to a pidfile which will hold the pid of <command>.
     -o --stdout-log=<stdout-log>  Path to log which will hold the stdout of the command [Default: log/stdout.log]
     -e --stderr-log=<stderr-log>  Path to log which will hold the stderr of the command [Default: log/stderr.log]
                                   The special value STDOUT will put this in the same log as the stdout output.
@@ -36,7 +40,8 @@ import time
 import daemon
 from daemon import runner
 from docopt import docopt
-from lockfile import pidlockfile, LockError
+from lockfile import pidlockfile, linklockfile, LockError
+
 
 from reversefold.util import multiproc
 
@@ -125,6 +130,13 @@ def main():
             print('There is likely to be a stale acquire pidfile at %s' % (acquire_pidfile_path,))
             raise
 
+    if args['--app-pidfile']:
+        applock = linklockfile.LinkLockFile(args['--app-pidfile'])
+        applock.acquire(timeout=0)
+        applock.release()
+    else:
+        applock = None
+
     # There is a small chance of a race condition here which can cause multiple processes to try to acquire
     # the pidfile. One will succeed and the others will fail but daemonize.py will exit with an exitcode of 0
     # as the condition was not detected above. This could be fixed if we could start the DaemonContext within
@@ -136,30 +148,42 @@ def main():
         working_directory=os.getcwd(),
         files_preserve=preserve,
     ):
-        proc = subprocess.Popen(
-            args['<command>'],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT if args['--stderr-log'] == 'STDOUT' else subprocess.PIPE)
-        proc.stdin.close()
-        thread = threading.Thread(target=multiproc.Pipe(proc.stdout, out_logger.info).flow)
-        thread.start()
-        threads = [thread]
-        if args['--stderr-log'] != 'STDOUT':
-            thread = threading.Thread(target=multiproc.Pipe(proc.stderr, err_logger.info).flow)
+        try:
+            proc = subprocess.Popen(
+                args['<command>'],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT if args['--stderr-log'] == 'STDOUT' else subprocess.PIPE)
+            if args['--app-pidfile']:
+                applock = linklockfile.LinkLockFile(args['--app-pidfile'])
+                applock.acquire(timeout=0)
+                with open(args['--app-pidfile'], 'w') as app_pidfile:
+                    app_pidfile.write(str(proc.pid))
+                    app_pidfile.write('\n')
+            proc.stdin.close()
+            thread = threading.Thread(target=multiproc.Pipe(proc.stdout, out_logger.info).flow)
             thread.start()
-            threads.append(thread)
-        while proc.returncode is None:
-            time.sleep(0.1)
-            proc.poll()
-        start = datetime.now()
-        wait_time = timedelta(seconds=5)
-        while threads and datetime.now() - start < wait_time:
-            alive_threads = []
-            for thread in threads:
-                thread.join(timeout=0.1)
-                if thread.is_alive():
-                    alive_threads.append(thread)
-            threads = alive_threads
+            threads = [thread]
+            if args['--stderr-log'] != 'STDOUT':
+                thread = threading.Thread(target=multiproc.Pipe(proc.stderr, err_logger.info).flow)
+                thread.start()
+                threads.append(thread)
+            while proc.returncode is None:
+                time.sleep(0.1)
+                proc.poll()
+            start = datetime.now()
+            wait_time = timedelta(seconds=5)
+            while threads and datetime.now() - start < wait_time:
+                alive_threads = []
+                for thread in threads:
+                    thread.join(timeout=0.1)
+                    if thread.is_alive():
+                        alive_threads.append(thread)
+                threads = alive_threads
+        finally:
+            if applock:
+                if os.path.exists(args['--app-pidfile']):
+                    os.unlink(args['--app-pidfile'])
+                applock.release()
         sys.exit()
 
 
