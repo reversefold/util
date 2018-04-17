@@ -5,6 +5,7 @@ stdout/err of programs can be captured while also allowing log rotation of these
 Usage:
   log.py -h | --help
   log.py <filename> [--format=<format>] [--datefmt=<damefmt>] [--tee]
+  log.py --tee [--format=<format>] [--datefmt=<damefmt>]
 
 Options:
   -h --help              Help.
@@ -19,6 +20,7 @@ Options:
 from docopt import docopt
 import logging
 import logging.handlers
+import os
 import sys
 
 
@@ -29,16 +31,23 @@ def main():
     formatter = logging.Formatter(
         args.get('--format', '%(message)s'),
         datefmt=args.get('--datefmt', '%Y-%m-%d %H:%M:%S'))
-    handler = logging.handlers.WatchedFileHandler(args['<filename>'], 'a', 'utf-8')
-    handler.setLevel(logging.INFO)
-    handler.setFormatter(formatter)
     log = logging.getLogger(__name__)
-    log.addHandler(handler)
+    if args['<filename>']:
+        handler = logging.handlers.WatchedFileHandler(args['<filename>'], 'a', 'utf-8')
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(formatter)
+        log.addHandler(handler)
     log.setLevel(logging.INFO)
     if tee:
+        if hasattr(sys.stdout, 'fileno'):
+            # Force stdout to be line-buffered
+            sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1)
+        if hasattr(sys.stderr, 'fileno'):
+            # Force stderr to be line-buffered
+            sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', 1)
         streamhandler = logging.StreamHandler()
         streamhandler.setLevel(logging.INFO)
-        streamhandler.setFormatter(logging.Formatter('%(message)s'))
+        streamhandler.setFormatter(formatter)
         log.addHandler(streamhandler)
     for line in iter(sys.stdin.readline, ''):
         log.info(line.rstrip())
