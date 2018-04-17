@@ -1,10 +1,14 @@
 import contextlib
 import logging
+import os
+import pwd
 
 import psutil
 
 
 LOG = logging.getLogger(__name__)
+
+_SENTINEL = object()
 
 
 # TODO: support arbitrary signals, not just TERM and KILL.
@@ -96,3 +100,24 @@ def kill(proc, recursive=False):
 def die(proc, recursive=False):
     with dead(proc, recursive=recursive):
         pass
+
+
+def get_processes_in_path(path, owner=_SENTINEL):
+    if owner is _SENTINEL:
+        owner = pwd.getpwuid(os.getuid()).pw_name
+    procs = []
+    for proc in psutil.process_iter():
+        if owner is not None and proc.username() != owner:
+            continue
+        try:
+            if (
+                proc.exe().startswith(path)
+                or any(
+                    f.path.startswith(path)
+                    for f in proc.open_files()
+                )
+            ):
+                procs.append(proc)
+        except psutil.AccessDenied:
+            pass
+    return procs
