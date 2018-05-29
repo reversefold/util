@@ -50,7 +50,7 @@ def main():
         streamhandler.setFormatter(formatter)
         log.addHandler(streamhandler)
     for line in iter(sys.stdin.readline, ''):
-        log.info(line.rstrip())
+        log.info(line.rstrip().replace('%', '%%'))
 
 
 if __name__ == '__main__':
