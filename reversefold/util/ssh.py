@@ -31,7 +31,7 @@ class SSHHost(object):
                  # Default to not checking host keys as cloud servers make it super annoying.
                  # Also default log level to ERROR so we don't see output about the host keys.
                  check_host_keys=False, ssh_log_level='ERROR',
-                 identity=None, use_color=True):
+                 identity=None, use_color=True, quiet=True):
         self.host = host
         self.port = port
         self.user = user
@@ -45,6 +45,7 @@ class SSHHost(object):
         else:
             self.identity = identity
         self.use_color = use_color
+        self.quiet = quiet
         self.host_prefix = '%s[%s%s%s%s%s%s%s]%s' % (
             Style.BRIGHT if self.use_color else '',
             Style.NORMAL if self.use_color else '',
@@ -129,6 +130,9 @@ class SSHHost(object):
 
         if self.identity is not None:
             ssh_options.extend(['-o', 'IdentityFile=%s' % (self.identity,)])
+
+        if self.quiet:
+            ssh_options.append('-q')
 
         return ssh_options
 
