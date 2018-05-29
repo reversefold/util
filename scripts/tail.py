@@ -3,15 +3,19 @@
 
 Usage:
   tail.py -h | --help
-  tail.py [--no-force-line-buffer] [--rate-limit=<count>] [--rate-period=<seconds>] [--each-rate-limit=<count>] [--each-rate-period=<seconds>] <filename>...
+  tail.py [--no-force-line-buffer]
+          [--rate-limit=<count>] [--rate-period=<seconds>]
+          [--each-rate-limit=<count>] [--each-rate-period=<seconds>]
+          <filename>...
 
 Options:
   -h --help                                  Help.
   --no-force-line-buffer                     Don't force stdout to be line-buffered.
-  -l <count> --rate-limit=<count>            A limit to the number of lines to be output within rate-period [Default: 100]
-  -p <seconds> --rate-period=<seconds>       The period in seconds that the rate-limit is applied to. [Default: 1]
-  -L <count> --each-rate-limit=<count>       A limit to the number of lines to be output within rate-period for each individual file [Default: ]
-  -P <seconds> --each-rate-period=<seconds>  The period in seconds that the rate-limit is applied to for each individual file. [Default: ]
+  -l <count> --rate-limit=<count>            A limit to the number of lines to be output within rate-period
+  -p <seconds> --rate-period=<seconds>       The period in seconds that the rate-limit is applied to.
+  -L <count> --each-rate-limit=<count>       A limit to the number of lines to be output within rate-period for each individual file
+  -P <seconds> --each-rate-period=<seconds>  The period in seconds that the rate-limit is applied to for each individual file.
+  <filename>...                              A list of filenames to tail. A single dash ("-") can be used to indicate reading from stdin instead of a filename.
 
 If more than `rate-limit` lines are received within `rate-period` seconds then a single line of "..." will be output and
 all subsequent lines received within that period will be ignored.
@@ -118,26 +122,18 @@ except ImportError:
     TailHandler = None
 
 
-def follow(thefile):
-    thefile.seek(0, 2)  # Go to the end of the file
-    line = ''
-    while True:
-        new_line = thefile.readline()
-        if not new_line:
-            time.sleep(0.1)  # Sleep briefly
-            continue
-        line += new_line
-        if line[-1] == '\n':
-            yield line[:-1]
-            line = ''
+def tail_file(file, line_queue, prefix=''):
+    follower = reversefold.util.follow.FileLineFollower(file)
+    for line in follower:
+        line_queue.handle_line(prefix + line)
 
 
-def tail(filename, line_queue, prefix=''):
+def tail_filename(filename, line_queue, prefix=''):
     if not os.path.exists(filename):
         sys.stderr.write('file %s does not exist\n' % (filename,))
         return
 
-    with reversefold.util.follow.LineFollower(filename, tail_only=True) as follower:
+    with reversefold.util.follow.FilenameLineFollower(filename, tail_only=True) as follower:
         for line in follower:
             line_queue.handle_line(prefix + line)
 
@@ -145,7 +141,10 @@ def tail(filename, line_queue, prefix=''):
 def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=None, each_rate_period=None):
     if TailHandler is not None:
         observer = Observer()
-    prefix_len = max(len(f) for f in filenames) + 3
+    # TODO: make configurable?
+    prefix_start = '['
+    prefix_end = '] '
+    prefix_len = max(len(f) for f in filenames) + len(prefix_start) + len(prefix_end)
     threads = []
     stop = threading.Event()
     master = Master(stop, rate_limit, rate_period)
@@ -154,7 +153,7 @@ def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=
     files = []
     try:
         for filename in filenames:
-            prefix = '[%s] ' % (filename,)
+            prefix = '%s%s%s' % (prefix_start, filename, prefix_end)
             if len(prefix) < prefix_len:
                 prefix += ' ' * (prefix_len - len(prefix))
             if each_rate_limit is None or each_rate_period is None:
@@ -166,7 +165,12 @@ def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=
                 chain_thread.daemon = True
                 chain_thread.start()
                 threads.append(chain_thread)
-            if TailHandler is not None:
+            if filename == '-':
+                thread = threading.Thread(target=tail_file, args=(sys.stdin, line_queue, prefix))
+                thread.daemon = True
+                thread.start()
+                threads.append(thread)
+            elif TailHandler is not None:
                 if not os.path.exists(filename):
                     sys.stderr.write('file %s does not exist\n' % (filename,))
                     continue
@@ -177,7 +181,7 @@ def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=
                 handler = TailHandler(filename, thefile, line_queue, prefix)
                 observer.schedule(handler, path=os.path.dirname(filename))
             else:
-                thread = threading.Thread(target=tail, args=[filename, line_queue, prefix])
+                thread = threading.Thread(target=tail_filename, args=(filename, line_queue, prefix))
                 thread.daemon = True
                 thread.start()
                 threads.append(thread)
