@@ -44,7 +44,7 @@ def main():
                 raise
 
     else:
-        with follow.LineFollower(
+        with follow.FilenameLineFollower(
             args['<filename>'], args['--tail']
         ) as follower:
             try:
