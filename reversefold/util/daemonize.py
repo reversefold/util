@@ -46,6 +46,9 @@ from lockfile import pidlockfile, linklockfile, LockError
 from reversefold.util import multiproc
 
 
+LOG = logging.getLogger(__name__)
+
+
 class TrimTrailingNewlinesStream(object):
     def __init__(self, stream):
         self.stream = stream
@@ -87,6 +90,38 @@ def get_logger(name, filename, log_format, date_format):
     return logger, handler
 
 
+class SelfBreakingPidfile(object):
+    def __init__(self, pidfile_path):
+        self.pidfile_path = pidfile_path
+
+    def __enter__(self):
+        acquire_pidfile_path = self.pidfile_path + '.acquirelock'
+        self.pidfile = pidlockfile.PIDLockFile(self.pidfile_path, timeout=0)
+        try:
+            with pidlockfile.PIDLockFile(acquire_pidfile_path, timeout=0):
+                if self.pidfile.is_locked():
+                    if runner.is_pidfile_stale(self.pidfile):
+                        LOG.warning('Stale lockfile detected, breaking the stale lock at %s', self.pidfile_path)
+                        self.pidfile.break_lock()
+                    else:
+                        LOG.error('Another process has already acquired the pidfile %s, daemon not started', self.pidfile_path)
+                        sys.exit(1)
+                self.pidfile.__enter__()
+                self.acquired = True
+        except LockError:
+            LOG.exception(
+                'Got an exception while attempting to check for a stale main pidfile. '
+                'There is likely to be a stale acquire pidfile at %s',
+                acquire_pidfile_path
+            )
+            raise
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.pifile.__exit__(exc_type, exc_value, traceback)
+
+
 def main():
     args = docopt(__doc__ % {'script': os.path.basename(__file__)})
     out_logger, out_handler = get_logger(
@@ -107,28 +142,10 @@ def main():
         )
         preserve.append(err_handler.stream)
 
-    if args['--pidfile'] is None:
-        pidfile = None
+    if args['--pidfile']:
+        pidfile = SelfBreakingPidfile(args['--pidfile'])
     else:
-        acquire_pidfile_path = args['--pidfile'] + '.acquirelock'
-        pidfile = pidlockfile.PIDLockFile(args['--pidfile'], timeout=0)
-        # If the first pidfile is stale, use another pid lockfile to make sure we're not
-        # racing someone else. This lockfile should be far less likely to be stale since
-        # it is only kept during this check and breaking the stale lock.
-        try:
-            with pidlockfile.PIDLockFile(acquire_pidfile_path, timeout=0):
-                if pidfile.is_locked():
-                    if runner.is_pidfile_stale(pidfile):
-                        print('Stale lockfile detected, breaking the stale lock %s' % (args['--pidfile'],))
-                        pidfile.break_lock()
-                    else:
-                        print('Another process has already acquired the pidfile %s, daemon not started' % (
-                            args['--pidfile'],))
-                        sys.exit(1)
-        except LockError:
-            print('Got an exception while attempting to check for a stale main pidfile.')
-            print('There is likely to be a stale acquire pidfile at %s' % (acquire_pidfile_path,))
-            raise
+        pidfile = None
 
     if args['--app-pidfile']:
         applock = linklockfile.LinkLockFile(args['--app-pidfile'])
@@ -137,12 +154,6 @@ def main():
     else:
         applock = None
 
-    # There is a small chance of a race condition here which can cause multiple processes to try to acquire
-    # the pidfile. One will succeed and the others will fail but daemonize.py will exit with an exitcode of 0
-    # as the condition was not detected above. This could be fixed if we could start the DaemonContext within
-    # the acquire pidfile's lock context, but since DaemonContext calls os._exit the acquire pidfile will never
-    # be unlocked. If a solution can be found to keep the lock on the acquire pidfile until the main pidfile is
-    # acquired, then release the acquire pidfile, then the race condition would not exist.
     with daemon.DaemonContext(
         pidfile=pidfile,
         working_directory=os.getcwd(),
