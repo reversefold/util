@@ -1,11 +1,26 @@
 #!/usr/bin/env python
+import os
 
 from setuptools import setup, find_packages
 
+
+VERSION = '1.19.1'
+
+README_PATH = os.path.join(os.path.dirname(__file__), 'README.md')
+
+DESCRIPTION = 'SSH, Proc, Multiproc, tail.py, log.py, stream.py, daemonize.py, etc.'
+
+if os.path.exists(README_PATH):
+    with open(README_PATH, 'r') as f:
+        LONG_DESCRIPTION = f.read()
+else:
+    LONG_DESCRIPTION = DESCRIPTION
+
 setup(
     name='reversefold.util',
-    version='1.19',
-    description='SSH, Proc, Multiproc, tail.py, log.py, stream.py, daemonize.py, etc.',
+    version=VERSION,
+    description=DESCRIPTION,
+    long_description=LONG_DESCRIPTION,
     author='Justin Patrin',
     author_email='papercrane@reversefold.com',
     url='https://github.com/reversefold/util',
