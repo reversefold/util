@@ -2,7 +2,7 @@
 
 [Available on pypi](https://pypi.python.org/pypi/reversefold.util)
 
-This is a connection of various command-line scripts and libraries which have come in useful over the years I've worked with Python.
+This is a collection of various command-line scripts and libraries which have come in useful over the years I've worked with Python.
 
 
 ## log.py
