@@ -40,13 +40,17 @@ import time
 import daemon
 from daemon import runner
 from docopt import docopt
-from lockfile import pidlockfile, linklockfile, LockError
+from fasteners import process_lock
 
 
 from reversefold.util import multiproc
 
 
 LOG = logging.getLogger(__name__)
+
+
+class Error(Exception):
+    pass
 
 
 class TrimTrailingNewlinesStream(object):
@@ -90,36 +94,48 @@ def get_logger(name, filename, log_format, date_format):
     return logger, handler
 
 
-class SelfBreakingPidfile(object):
+class LockedPidFile(object):
     def __init__(self, pidfile_path):
         self.pidfile_path = pidfile_path
+        self.pidfile_lock_path = self.pidfile_path + '.lock'
+        self.pidfile = None
+        self.pidfile_lock = None
+
+    def acquire(self, pid=None):
+        self.pidfile_lock = process_lock.InterProcessLock(self.pidfile_lock_path)
+        if not self.pidfile_lock.acquire():
+            return False
+        if pid is None:
+            pid = os.getpid()
+        self.pidfile = os.fdopen(
+            os.open(
+                self.pidfile_path,
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                0o600
+            ),
+            'x'
+        )
+        self.pidfile.write(str(pid))
+        self.pidfile.flush()
+        return True
+
+    def release(self):
+        if not self.pidfile_lock.acquired:
+            raise Error('Lock is not locked')
+        self.pidfile.close()
+        if os.path.exists(self.pidfile_path):
+            os.unlink(self.pidfile_path)
+        os.unlink(self.pidfile_lock_path)
+        self.pidfile_lock.release()
 
     def __enter__(self):
-        acquire_pidfile_path = self.pidfile_path + '.acquirelock'
-        self.pidfile = pidlockfile.PIDLockFile(self.pidfile_path, timeout=0)
-        try:
-            with pidlockfile.PIDLockFile(acquire_pidfile_path, timeout=0):
-                if self.pidfile.is_locked():
-                    if runner.is_pidfile_stale(self.pidfile):
-                        LOG.warning('Stale lockfile detected, breaking the stale lock at %s', self.pidfile_path)
-                        self.pidfile.break_lock()
-                    else:
-                        LOG.error('Another process has already acquired the pidfile %s, daemon not started', self.pidfile_path)
-                        sys.exit(1)
-                self.pidfile.__enter__()
-                self.acquired = True
-        except LockError:
-            LOG.exception(
-                'Got an exception while attempting to check for a stale main pidfile. '
-                'There is likely to be a stale acquire pidfile at %s',
-                acquire_pidfile_path
-            )
-            raise
-
-        return self
+        acquired = self.acquire()
+        if acquired:
+            return self.pidfile
+        raise Error('Could not acquire lock')
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.pifile.__exit__(exc_type, exc_value, traceback)
+        self.release()
 
 
 def main():
@@ -143,14 +159,12 @@ def main():
         preserve.append(err_handler.stream)
 
     if args['--pidfile']:
-        pidfile = SelfBreakingPidfile(args['--pidfile'])
+        pidfile = LockedPidFile(args['--pidfile'])
     else:
         pidfile = None
 
     if args['--app-pidfile']:
-        applock = linklockfile.LinkLockFile(args['--app-pidfile'])
-        applock.acquire(timeout=0)
-        applock.release()
+        applock = LockedPidFile(args['--app-pidfile'])
     else:
         applock = None
 
@@ -164,12 +178,17 @@ def main():
                 args['<command>'],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT if args['--stderr-log'] == 'STDOUT' else subprocess.PIPE)
-            if args['--app-pidfile']:
-                applock = linklockfile.LinkLockFile(args['--app-pidfile'])
-                applock.acquire(timeout=0)
-                with open(args['--app-pidfile'], 'w') as app_pidfile:
-                    app_pidfile.write(str(proc.pid))
-                    app_pidfile.write('\n')
+            if applock and not applock.acquire(proc.pid):
+                try:
+                    proc.terminate()
+                    start = datetime.datetime.now()
+                    while proc.poll() is None and datetime.datetime.now() - start < datetime.timedelta(seconds=1):
+                        time.sleep(0.1)
+                    if proc.poll() is None:
+                        proc.kill()
+                except Exception:
+                    LOG.exception('Exception killing the app process after acquiring the pidfile failed.')
+                raise Error('Could not acquire app pidfile lock %s' % (applock.file_path,))
             proc.stdin.close()
             thread = threading.Thread(target=multiproc.Pipe(proc.stdout, out_logger.info).flow)
             thread.start()
@@ -192,8 +211,6 @@ def main():
                 threads = alive_threads
         finally:
             if applock:
-                if os.path.exists(args['--app-pidfile']):
-                    os.unlink(args['--app-pidfile'])
                 applock.release()
         sys.exit()
 
