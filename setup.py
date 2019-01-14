@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 import os
 
-from setuptools import setup, find_packages
+
+import setuptools
 
 
-VERSION = '1.19.1'
+VERSION = '1.19.2'
 
 README_PATH = os.path.join(os.path.dirname(__file__), 'README.md')
 
@@ -16,15 +17,16 @@ if os.path.exists(README_PATH):
 else:
     LONG_DESCRIPTION = DESCRIPTION
 
-setup(
+setuptools.setup(
     name='reversefold.util',
     version=VERSION,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
+    long_description_content_type='text/markdown',
     author='Justin Patrin',
     author_email='papercrane@reversefold.com',
     url='https://github.com/reversefold/util',
-    packages=find_packages(),
+    packages=setuptools.find_packages(),
     scripts=[
         'scripts/tail.py',
         'scripts/log.py',
