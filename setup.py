@@ -5,7 +5,7 @@ import os
 import setuptools
 
 
-VERSION = '1.19.2'
+VERSION = '2.0.0'
 
 README_PATH = os.path.join(os.path.dirname(__file__), 'README.md')
 
@@ -42,7 +42,7 @@ setuptools.setup(
     install_requires=[
         'colorama',
         'docopt',
-        'lockfile',
+        'fasteners',
         'python-daemon==2.1.1',
         'psutil',
         'watchdog',
