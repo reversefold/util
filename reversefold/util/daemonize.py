@@ -129,7 +129,7 @@ class LockedPidFile(object):
                 os.O_CREAT | os.O_EXCL | os.O_WRONLY,
                 0o600
             ),
-            'x'
+            'ax'
         )
         self.pidfile.write(str(pid))
         self.pidfile.flush()
