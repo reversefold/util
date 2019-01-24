@@ -41,6 +41,7 @@ import daemon
 from daemon import runner
 from docopt import docopt
 from fasteners import process_lock
+import psutil
 
 
 from reversefold.util import multiproc
@@ -108,7 +109,16 @@ class LockedPidFile(object):
         if pid is None:
             pid = os.getpid()
         if os.path.exists(self.pidfile_path):
-            LOG.warning('Pidfile exists but appears to be stale, removing %s', self.pidfile_path)
+            with open(self.pidfile_path) as f:
+                stalepid = int(f.read())
+            if stalepid in psutil.pids():
+                raise Error(
+                    'Pidfile %s exists and is not locked but pid %s is still alive' % (
+                        self.pidfile_path,
+                        stalepid
+                    )
+                )
+            LOG.warning('Pidfile exists but is not locked, removing %s', self.pidfile_path)
             os.unlink(self.pidfile_path)
         self.pidfile = os.fdopen(
             os.open(
