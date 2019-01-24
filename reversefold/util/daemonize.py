@@ -107,6 +107,9 @@ class LockedPidFile(object):
             return False
         if pid is None:
             pid = os.getpid()
+        if os.path.exists(self.pidfile_path):
+            LOG.warning('Pidfile exists but appears to be stale, removing %s', self.pidfile_path)
+            os.unlink(self.pidfile_path)
         self.pidfile = os.fdopen(
             os.open(
                 self.pidfile_path,
