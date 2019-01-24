@@ -5,7 +5,7 @@ import os
 import setuptools
 
 
-VERSION = '2.0.1'
+VERSION = '2.1.1'
 
 README_PATH = os.path.join(os.path.dirname(__file__), 'README.md')
 
