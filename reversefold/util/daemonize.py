@@ -109,15 +109,18 @@ class LockedPidFile(object):
         if pid is None:
             pid = os.getpid()
         if os.path.exists(self.pidfile_path):
-            with open(self.pidfile_path) as f:
-                stalepid = int(f.read())
-            if stalepid in psutil.pids():
-                raise Error(
-                    'Pidfile %s exists and is not locked but pid %s is still alive' % (
-                        self.pidfile_path,
-                        stalepid
+            try:
+                with open(self.pidfile_path) as f:
+                    stalepid = int(f.read())
+                if stalepid in psutil.pids():
+                    raise Error(
+                        'Pidfile %s exists and is not locked but pid %s is still alive' % (
+                            self.pidfile_path,
+                            stalepid
+                        )
                     )
-                )
+            except Exception as exc:
+                LOG.error('Exception %r checking the stale pidfile, ignoring', exc)
             LOG.warning('Pidfile exists but is not locked, removing %s', self.pidfile_path)
             os.unlink(self.pidfile_path)
         self.pidfile = os.fdopen(
