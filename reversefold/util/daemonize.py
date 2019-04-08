@@ -7,6 +7,8 @@ Usage:
     %(script)s [--stdout-log=<stdout-log>] [--stderr-log=<stderr-log>]
                [--pidfile=<pidfile>] [--app-pidfile=<pidfile>]
                [--log-format=<fmt> [--date-format=<fmt>]]
+               [(--log-handler=watched | --log-handler=timed [--when=<w>] [--interval=<i>] [--backup-count=<b>])]
+               [--debug]
                -- <command>...
 
 Options:
@@ -26,6 +28,24 @@ Options:
                                   identifier (like %%(asctime)s) in it.
                                   For a full reference see the Python documentation:
                                   https://docs.python.org/2/library/datetime.html#strftime-strptime-behavior
+    --log-handler=<type>          Set the log handler type. [Default: watched]
+                                  Options:
+                                    "watched": WatchedFileHandler. If the log is rotated via an outside process
+                                      such as logrotate this handler will detect that and create a new file with the
+                                      original name.
+                                    "timed": TimedRotatingFileHandler. Will automatically rotate the log file at time
+                                      intervals.
+    --when=<w>                    Sets the when parameter of the TimedRotatingFileHandler. [Default: h]
+                                  Valid options:
+                                    s (second)
+                                    m (minute)
+                                    h (hour)
+                                    d (day)
+                                    w0-w6 (weekday, 0=Monday)
+                                    midnight
+    --interval=<i>                Sets the interval parameter of the TimedRotatingFileHandler. [Default: 1]
+    --backup-count=<b>            Sets the backupCount parameter of the TimedRotatingFileHandler. [Default: 24]
+    --debug                       More output.
 """
 from __future__ import print_function
 from datetime import datetime, timedelta
@@ -86,8 +106,29 @@ class WatchedFileHandlerVerbatim(logging.handlers.WatchedFileHandler):
         return TrimTrailingNewlinesStream(super(WatchedFileHandlerVerbatim, self)._open())
 
 
-def get_logger(name, filename, log_format, date_format):
-    handler = WatchedFileHandlerVerbatim(filename, log_format=log_format, date_format=date_format)
+class TimedRotatingFileHandlerVerbatim(logging.handlers.TimedRotatingFileHandler):
+    def __init__(self, *a, **k):
+        log_format = k.pop('log_format')
+        date_format = k.pop('date_format')
+        super(TimedRotatingFileHandlerVerbatim, self).__init__(*a, **k)
+        formatter = logging.Formatter(log_format, datefmt=date_format)
+        self.setFormatter(formatter)
+
+    # overriding to patch the stream to get rid of the trailing newlines added by the logging system
+    def _open(self):
+        return TrimTrailingNewlinesStream(super(TimedRotatingFileHandlerVerbatim, self)._open())
+
+
+def get_logger(name, filename, log_format, date_format, log_handler, when, interval, backup_count):
+
+    if log_handler == 'watched':
+        handler = WatchedFileHandlerVerbatim(filename, log_format=log_format, date_format=date_format)
+    elif log_handler == 'timed':
+        handler = TimedRotatingFileHandlerVerbatim(
+            filename,
+            log_format=log_format, date_format=date_format,
+            when=when, interval=interval, backupCount=backup_count
+        )
     handler.setLevel(logging.INFO)
     logger = logging.getLogger('daemonize.%s' % (name,))
     logger.setLevel(logging.INFO)
@@ -155,12 +196,23 @@ class LockedPidFile(object):
 
 
 def main():
-    args = docopt(__doc__ % {'script': os.path.basename(__file__)})
+    docstr = __doc__ % {'script': os.path.basename(__file__)}
+    args = docopt(docstr)
+    if args['--when'] not in ('s', 'm', 'h', 'd', 'w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'midnight'):
+        sys.stderr.write('Value for --when parameter not understood.\n')
+        sys.stderr.write(docstr)
+        sys.exit(1)
+    if args['--debug']:
+        print(args)
     out_logger, out_handler = get_logger(
         'stdout',
         args['--stdout-log'],
         args['--log-format'],
-        args['--date-format']
+        args['--date-format'],
+        args['--log-handler'],
+        args['--when'],
+        int(args['--interval']),
+        int(args['--backup-count']),
     )
     preserve = [out_handler.stream]
     if args['--stderr-log'] == 'STDOUT':
@@ -170,7 +222,11 @@ def main():
             'stderr',
             args['--stderr-log'],
             args['--log-format'],
-            args['--date-format']
+            args['--date-format'],
+            args['--log-handler'],
+            args['--when'],
+            int(args['--interval']),
+            int(args['--backup-count']),
         )
         preserve.append(err_handler.stream)
 
