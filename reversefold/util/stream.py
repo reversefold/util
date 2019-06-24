@@ -24,13 +24,13 @@ from reversefold.util import follow
 
 def main():
     args = docopt(__doc__)
-    if args['--byte']:
-        if hasattr(sys.stdout, 'fileno'):
+    if args["--byte"]:
+        if hasattr(sys.stdout, "fileno"):
             # Force stdout to be un-buffered
-            sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+            sys.stdout = os.fdopen(sys.stdout.fileno(), "w", 0)
 
         with follow.Follower(
-            args['<filename>'], args['--tail'], int(args['--bufsize'])
+            args["<filename>"], args["--tail"], int(args["--bufsize"])
         ) as follower:
             try:
                 for data in follower:
@@ -45,7 +45,7 @@ def main():
 
     else:
         with follow.FilenameLineFollower(
-            args['<filename>'], args['--tail']
+            args["<filename>"], args["--tail"]
         ) as follower:
             try:
                 for data in follower:
@@ -57,5 +57,5 @@ def main():
                 raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

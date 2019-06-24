@@ -12,7 +12,7 @@ class TestException(Exception):
 
 class TestProc(unittest.TestCase):
     def setUp(self):
-        self.psutil_Process = mock.patch('psutil.Process').start()
+        self.psutil_Process = mock.patch("psutil.Process").start()
 
     def tearDown(self):
         mock.patch.stopall()
@@ -43,7 +43,7 @@ class TestProc(unittest.TestCase):
         self.assertEquals(result, [mock_proc] + mock_procs)
 
     def test_get_process_tree_NoSuchProcess(self):
-        self.psutil_Process.side_effect = psutil.NoSuchProcess('')
+        self.psutil_Process.side_effect = psutil.NoSuchProcess("")
 
         result = proc.get_process_tree(123)
 
@@ -52,18 +52,18 @@ class TestProc(unittest.TestCase):
         self.assertEquals(result, [])
 
     def test__signal_processes_empty(self):
-        proc._signal_processes([], '')
+        proc._signal_processes([], "")
 
     def test__signal_processes(self):
         mock_procs = [mock.MagicMock() for _ in range(4)]
         mock_procs[0].is_running.return_value = False
         mock_procs[1].is_running.return_value = True
-        mock_procs[1].signal_func.side_effect = psutil.NoSuchProcess('')
+        mock_procs[1].signal_func.side_effect = psutil.NoSuchProcess("")
         mock_procs[2].is_running.return_value = True
-        mock_procs[2].signal_func.side_effect = Exception('')
+        mock_procs[2].signal_func.side_effect = Exception("")
         mock_procs[3].is_running.return_value = True
 
-        proc._signal_processes(mock_procs, 'signal_func')
+        proc._signal_processes(mock_procs, "signal_func")
 
         mock_procs[1].signal_func.assert_called_once()
         mock_procs[2].signal_func.assert_called_once()
@@ -76,7 +76,7 @@ class TestProc(unittest.TestCase):
         self.psutil_Process.return_value = mock_ps_proc
         mock_ps_proc.is_running.return_value = True
 
-        with proc.signalling(mock_proc, 'signal_func') as mock_proc_as:
+        with proc.signalling(mock_proc, "signal_func") as mock_proc_as:
             self.assertEqual(mock_proc_as, mock_proc)
 
         self.psutil_Process.assert_called_once_with(123)
@@ -90,7 +90,7 @@ class TestProc(unittest.TestCase):
         mock_ps_proc.is_running.return_value = True
 
         try:
-            with proc.signalling(mock_proc, 'signal_func') as mock_proc_as:
+            with proc.signalling(mock_proc, "signal_func") as mock_proc_as:
                 self.assertEqual(mock_proc_as, mock_proc)
                 raise TestException()
         except TestException:
@@ -119,8 +119,12 @@ class TestProc(unittest.TestCase):
         except TestException:
             pass
 
-        self.psutil_Process.assert_has_calls([mock.call(123), mock.call(321)], any_order=True)
-        mock_ps_proc.is_running.assert_has_calls([mock.call(), mock.call()], any_order=True)
+        self.psutil_Process.assert_has_calls(
+            [mock.call(123), mock.call(321)], any_order=True
+        )
+        mock_ps_proc.is_running.assert_has_calls(
+            [mock.call(), mock.call()], any_order=True
+        )
         mock_ps_proc.terminate.assert_called_once()
         mock_ps_proc.kill.assert_called_once()
 
@@ -134,8 +138,12 @@ class TestProc(unittest.TestCase):
         with proc.dead(mock_proc) as mock_proc_as:
             self.assertEqual(mock_proc_as, mock_proc)
 
-        self.psutil_Process.assert_has_calls([mock.call(123), mock.call(123)], any_order=True)
-        mock_ps_proc.is_running.assert_has_calls([mock.call(), mock.call()], any_order=True)
+        self.psutil_Process.assert_has_calls(
+            [mock.call(123), mock.call(123)], any_order=True
+        )
+        mock_ps_proc.is_running.assert_has_calls(
+            [mock.call(), mock.call()], any_order=True
+        )
         mock_ps_proc.terminate.assert_called_once()
         mock_ps_proc.kill.assert_called_once()
 
@@ -145,7 +153,7 @@ class TestProc(unittest.TestCase):
         mock_ps_proc = mock.MagicMock()
         mock_child_ps_proc = mock.MagicMock()
         mock_child_ps_proc.is_running.return_value = True
-        get_process_tree = mock.patch('reversefold.util.proc.get_process_tree').start()
+        get_process_tree = mock.patch("reversefold.util.proc.get_process_tree").start()
         get_process_tree.side_effect = [[mock_ps_proc, mock_child_ps_proc], []]
         mock_ps_proc.is_running.return_value = True
 

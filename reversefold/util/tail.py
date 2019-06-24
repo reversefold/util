@@ -25,6 +25,7 @@ Each of the rate options supports an empty value to disable the rate limiting.
 from __future__ import print_function
 from datetime import timedelta
 import os
+
 try:
     from queue import Empty, Queue
 except ImportError:
@@ -50,7 +51,9 @@ class LineQueue(object):
         self.queue = Queue()
         self.stop = stop
         self.rate_limit = rate_limit
-        self.rate_period = None if rate_period is None else timedelta(seconds=rate_period)
+        self.rate_period = (
+            None if rate_period is None else timedelta(seconds=rate_period)
+        )
 
     def _line_gen(self):
         while not self.stop.is_set():
@@ -92,7 +95,7 @@ class Master(object):
     def run(self):
         for line in self.line_queue.get_line_gen():
             if line is RATE_LIMIT_SENTINEL:
-                line = '...'
+                line = "..."
             print(line)
 
 
@@ -101,12 +104,12 @@ try:
     from watchdog.observers import Observer
 
     class TailHandler(FileSystemEventHandler):
-        def __init__(self, filename, thefile, line_queue, prefix=''):
+        def __init__(self, filename, thefile, line_queue, prefix=""):
             super(TailHandler, self).__init__()
             self.prefix = prefix
             self.filename = filename
             self.thefile = thefile
-            self.line = ''
+            self.line = ""
             self.line_queue = line_queue
 
         def on_modified(self, event):
@@ -117,36 +120,45 @@ try:
                 if not new_line:
                     return
                 self.line += new_line
-                if self.line[-1] == '\n':
+                if self.line[-1] == "\n":
                     self.line_queue.handle_line(self.prefix + self.line[:-1])
-                    self.line = ''
+                    self.line = ""
+
 
 except ImportError:
     TailHandler = None
 
 
-def tail_file(file, line_queue, prefix=''):
+def tail_file(file, line_queue, prefix=""):
     follower = reversefold.util.follow.FileLineFollower(file)
     for line in follower:
         line_queue.handle_line(prefix + line)
 
 
-def tail_filename(filename, line_queue, prefix=''):
+def tail_filename(filename, line_queue, prefix=""):
     if not os.path.exists(filename):
-        sys.stderr.write('file %s does not exist\n' % (filename,))
+        sys.stderr.write("file %s does not exist\n" % (filename,))
         return
 
-    with reversefold.util.follow.FilenameLineFollower(filename, tail_only=True) as follower:
+    with reversefold.util.follow.FilenameLineFollower(
+        filename, tail_only=True
+    ) as follower:
         for line in follower:
             line_queue.handle_line(prefix + line)
 
 
-def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=None, each_rate_period=None):
+def tail_multiple(
+    filenames,
+    rate_limit=None,
+    rate_period=None,
+    each_rate_limit=None,
+    each_rate_period=None,
+):
     if TailHandler is not None:
         observer = Observer()
     # TODO: make configurable?
-    prefix_start = '['
-    prefix_end = '] '
+    prefix_start = "["
+    prefix_end = "] "
     prefix_len = max(len(f) for f in filenames) + len(prefix_start) + len(prefix_end)
     threads = []
     stop = threading.Event()
@@ -156,35 +168,39 @@ def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=
     files = []
     try:
         for filename in filenames:
-            prefix = '%s%s%s' % (prefix_start, filename, prefix_end)
+            prefix = "%s%s%s" % (prefix_start, filename, prefix_end)
             if len(prefix) < prefix_len:
-                prefix += ' ' * (prefix_len - len(prefix))
+                prefix += " " * (prefix_len - len(prefix))
             if each_rate_limit is None or each_rate_period is None:
                 line_queue = master.line_queue
             else:
                 line_queue = LineQueue(stop, each_rate_limit, each_rate_period)
-                queue_chain = QueueChain(line_queue, master.line_queue, prefix + '...')
+                queue_chain = QueueChain(line_queue, master.line_queue, prefix + "...")
                 chain_thread = threading.Thread(target=queue_chain.run)
                 chain_thread.daemon = True
                 chain_thread.start()
                 threads.append(chain_thread)
-            if filename == '-':
-                thread = threading.Thread(target=tail_file, args=(sys.stdin, line_queue, prefix))
+            if filename == "-":
+                thread = threading.Thread(
+                    target=tail_file, args=(sys.stdin, line_queue, prefix)
+                )
                 thread.daemon = True
                 thread.start()
                 threads.append(thread)
             elif TailHandler is not None:
                 if not os.path.exists(filename):
-                    sys.stderr.write('file %s does not exist\n' % (filename,))
+                    sys.stderr.write("file %s does not exist\n" % (filename,))
                     continue
-                thefile = open(filename, 'r')
+                thefile = open(filename, "r")
                 files.append(thefile)
                 thefile.seek(0, 2)  # Go to the end of the file
                 filename = os.path.abspath(filename)
                 handler = TailHandler(filename, thefile, line_queue, prefix)
                 observer.schedule(handler, path=os.path.dirname(filename))
             else:
-                thread = threading.Thread(target=tail_filename, args=(filename, line_queue, prefix))
+                thread = threading.Thread(
+                    target=tail_filename, args=(filename, line_queue, prefix)
+                )
                 thread.daemon = True
                 thread.start()
                 threads.append(thread)
@@ -219,24 +235,26 @@ def tail_multiple(filenames, rate_limit=None, rate_period=None, each_rate_limit=
 
 
 def int_or_none(val):
-    return None if val is None or val == '' else int(val)
+    return None if val is None or val == "" else int(val)
 
 
 def main():
     args = docopt(__doc__)
-    if not args['--no-force-line-buffer']:
-        if hasattr(sys.stdout, 'fileno'):
-            sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1)
-    rate_limit = int_or_none(args['--rate-limit'])
-    rate_period = int_or_none(args['--rate-period'])
-    each_rate_limit = int_or_none(args['--each-rate-limit'])
-    each_rate_period = int_or_none(args['--each-rate-period'])
+    if not args["--no-force-line-buffer"]:
+        if hasattr(sys.stdout, "fileno"):
+            sys.stdout = os.fdopen(sys.stdout.fileno(), "w", 1)
+    rate_limit = int_or_none(args["--rate-limit"])
+    rate_period = int_or_none(args["--rate-period"])
+    each_rate_limit = int_or_none(args["--each-rate-limit"])
+    each_rate_period = int_or_none(args["--each-rate-period"])
     tail_multiple(
-        args['<filename>'],
-        rate_limit=rate_limit, rate_period=rate_period,
-        each_rate_limit=each_rate_limit, each_rate_period=each_rate_period
+        args["<filename>"],
+        rate_limit=rate_limit,
+        rate_period=rate_period,
+        each_rate_limit=each_rate_limit,
+        each_rate_period=each_rate_period,
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
