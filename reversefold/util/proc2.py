@@ -24,7 +24,7 @@ def _signal_processes(procs, sig):
             except psutil.NoSuchProcess:
                 pass
             except Exception as e:
-                LOG.error('Exception sending signal %s to %r: %r', sig, proc, e)
+                LOG.error("Exception sending signal %s to %r: %r", sig, proc, e)
 
 
 def get_process_tree(pid):
@@ -61,7 +61,7 @@ def signalling(proc, sig, recursive=False, _procs=None):
             _signal_processes(procs, sig)
         except Exception as e:
             if exc:
-                LOG.exception('Exception sending signal %s to %r: %r', sig, procs, e)
+                LOG.exception("Exception sending signal %s to %r: %r", sig, procs, e)
             else:
                 raise
 
@@ -120,12 +120,8 @@ def get_processes_in_path(path, owner=_SENTINEL):
         if owner is not None and proc.username() != owner:
             continue
         try:
-            if (
-                proc.exe().startswith(path)
-                or any(
-                    f.path.startswith(path)
-                    for f in proc.open_files()
-                )
+            if proc.exe().startswith(path) or any(
+                f.path.startswith(path) for f in proc.open_files()
             ):
                 procs.append(proc)
         except psutil.AccessDenied:

@@ -17,9 +17,9 @@ class FileLineFollower(object):
                 time.sleep(0.1)
                 continue
             buf.append(new_line)
-            if buf[-1][-1] == '\n':
+            if buf[-1][-1] == "\n":
                 # Don't include the trailing newline in the output
-                yield ''.join(buf)[:-1]
+                yield "".join(buf)[:-1]
                 buf = []
 
 
@@ -35,6 +35,7 @@ class FilenameLineFollower(FileLineFollower):
             if line == 'a':
                 f.finish = True
     """
+
     def __init__(self, filename, tail_only=False):
         # Explicitly setting file to None as we set it in __enter__
         super(FilenameLineFollower, self).__init__(file=None)
@@ -42,7 +43,7 @@ class FilenameLineFollower(FileLineFollower):
         self.tail_only = tail_only
 
     def __enter__(self):
-        self.file = open(self.filename, 'r')
+        self.file = open(self.filename, "r")
         if self.tail_only:
             # Go to the end of the file
             self.file.seek(0, 2)
@@ -87,6 +88,7 @@ class FilenameFollower(FDFollower):
             if i == 50:
                 f.finish = True
     """
+
     def __init__(self, filename, tail_only=False, chunk_size=1024):
         # Setting fd to None as we set it in __enter__
         super(FilenameFollower, self).__init__(fd=None, chunk_size=chunk_size)

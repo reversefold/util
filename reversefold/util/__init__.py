@@ -48,8 +48,8 @@ def chunked(seq, chunk_size):
 
 
 def force_stdout_line_buffer():
-    if hasattr(sys.stdout, 'fileno'):
+    if hasattr(sys.stdout, "fileno"):
         # Force stdout to be line-buffered
-        sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1)
+        sys.stdout = os.fdopen(sys.stdout.fileno(), "w", 1)
     else:
-        LOG.warning('sys.stdout has no fileno attribute, it cannot be line-buffered')
+        LOG.warning("sys.stdout has no fileno attribute, it cannot be line-buffered")

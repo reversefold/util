@@ -23,7 +23,7 @@ def _signal_processes(procs, func_name):
             except psutil.NoSuchProcess:
                 pass
             except Exception as e:
-                LOG.error('Exception running %s on %r: %r', func_name, proc, e)
+                LOG.error("Exception running %s on %r: %r", func_name, proc, e)
 
 
 def get_process_tree(pid):
@@ -60,17 +60,19 @@ def signalling(proc, signal_func_name, recursive=False, _procs=None):
             _signal_processes(procs, signal_func_name)
         except Exception as e:
             if exc:
-                LOG.exception('Exception calling %s on %r: %r', signal_func_name, procs, e)
+                LOG.exception(
+                    "Exception calling %s on %r: %r", signal_func_name, procs, e
+                )
             else:
                 raise
 
 
 def terminating(proc, recursive=False, _procs=None):
-    return signalling(proc, 'terminate', recursive=recursive, _procs=_procs)
+    return signalling(proc, "terminate", recursive=recursive, _procs=_procs)
 
 
 def killing(proc, recursive=False, _procs=None):
-    return signalling(proc, 'kill', recursive=recursive, _procs=_procs)
+    return signalling(proc, "kill", recursive=recursive, _procs=_procs)
 
 
 @contextlib.contextmanager
@@ -110,12 +112,8 @@ def get_processes_in_path(path, owner=_SENTINEL):
         if owner is not None and proc.username() != owner:
             continue
         try:
-            if (
-                proc.exe().startswith(path)
-                or any(
-                    f.path.startswith(path)
-                    for f in proc.open_files()
-                )
+            if proc.exe().startswith(path) or any(
+                f.path.startswith(path) for f in proc.open_files()
             ):
                 procs.append(proc)
         except psutil.AccessDenied:

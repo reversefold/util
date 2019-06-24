@@ -7,10 +7,7 @@ import sys
 def recursive_sorted(data):
     if isinstance(data, dict):
         return collections.OrderedDict(
-            sorted(
-                (k, recursive_sorted(v))
-                for k, v in data.iteritems()
-            )
+            sorted((k, recursive_sorted(v)) for k, v in data.iteritems())
         )
     elif isinstance(data, (list, tuple)):
         return sorted(recursive_sorted(v) for v in data)
@@ -23,5 +20,5 @@ def main():
     print(json.dumps(recursive_sorted(data), indent=4))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
