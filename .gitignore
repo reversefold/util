@@ -36,3 +36,6 @@ nosetests.xml
 .pydevproject
 
 .python-version
+
+.mypy_cache
+.venv
