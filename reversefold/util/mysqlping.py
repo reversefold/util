@@ -27,7 +27,7 @@ down_start = None
 
 def log(msg):
     global i
-    print '%s [%r] %s' % (datetime.datetime.now(), i, msg)
+    print('%s [%r] %s' % (datetime.datetime.now(), i, msg))
     sys.stdout.flush()
     i += 1
 
