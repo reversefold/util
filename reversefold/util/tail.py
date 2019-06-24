@@ -25,7 +25,10 @@ Each of the rate options supports an empty value to disable the rate limiting.
 from __future__ import print_function
 from datetime import timedelta
 import os
-from Queue import Empty, Queue
+try:
+    from queue import Empty, Queue
+except ImportError:
+    from Queue import Empty, Queue
 import sys
 import threading
 import time
