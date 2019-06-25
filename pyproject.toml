@@ -4,7 +4,7 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry]
 name = "reversefold.util"
-version = "3.0.0"
+version = "3.0.1"
 description = "SSH, Proc, Multiproc, tail.py, log.py, stream.py, daemonize.py, etc."
 readme = "README.md"
 authors = ["Justin Patrin <papercrane@reversefold.com>"]
@@ -13,6 +13,7 @@ repository = "https://github.com/reversefold/util.git"
 packages = [
     {include="reversefold"},
 ]
+license = "MIT"
 
 [tool.poetry.scripts]
 "daemonize.py" = "reversefold.util.daemonize:main"
