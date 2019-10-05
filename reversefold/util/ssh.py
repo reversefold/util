@@ -67,15 +67,15 @@ class SSHHost(object):
             Style.BRIGHT if self.use_color else "",
             Style.NORMAL if self.use_color else "",
         )
-        l = (
+        text_len = (
             len(self.host_prefix)
             - len(Style.BRIGHT) * 2
             - len(Style.NORMAL) * 2
             - len(Fore.LIGHTBLUE_EX)
             - len(Fore.RESET)
         )
-        if l < prefix_pad_length:
-            self.host_prefix += " " * (prefix_pad_length - l)
+        if text_len < prefix_pad_length:
+            self.host_prefix += " " * (prefix_pad_length - text_len)
         self.full_prefix = "%s%s" % (self.prefix, self.host_prefix)
 
     def puts(self, line=None):
@@ -83,16 +83,9 @@ class SSHHost(object):
         Write line to stdout prefixed by host
         """
         if line is None:
-            line = u""
-        elif not isinstance(line, unicode):
-            line = unicode(line, errors="replace")
-        # The two-step unicode/ascii conversion ensures that we get something that
-        # will display properly and not cause strange errors/exceptions.
-        ### TODO: This was written a while ago and I can't specifically remember
-        ###       the original issue, but I know that this was the best way I
-        ###       could find to ensure that no text errors happened.
-        # TODO: Perhaps try setting LC_ALL or other locale/encoding/charset vars?
-        line = line.encode("ascii", "replace")
+            line = ""
+        elif not isinstance(line, str):
+            line = line.decode(errors="backslashreplace")
 
         sys.stdout.write("%s %s" % (self.full_prefix, line))
         sys.stdout.flush()
@@ -184,7 +177,7 @@ class SSHHost(object):
 
         stdin_type = (
             subprocess.PIPE
-            if stdin is SSHHost.__SENTINEL or isinstance(stdin, basestring)
+            if stdin is SSHHost.__SENTINEL or isinstance(stdin, str)
             else stdin
         )
 
@@ -193,7 +186,7 @@ class SSHHost(object):
         )
 
         if stdin_type == subprocess.PIPE:
-            if isinstance(stdin, basestring):
+            if isinstance(stdin, str):
                 ssh.stdin.write(stdin)
             if close_stdin:
                 ssh.stdin.close()

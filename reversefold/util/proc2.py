@@ -41,7 +41,7 @@ def signalling(proc, sig, recursive=False, _procs=None):
     exc = False
     try:
         yield proc
-    except:
+    except:  # noqa
         exc = True
         raise
     finally:

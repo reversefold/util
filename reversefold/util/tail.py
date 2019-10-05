@@ -26,10 +26,7 @@ from __future__ import print_function
 from datetime import timedelta
 import os
 
-try:
-    from queue import Empty, Queue
-except ImportError:
-    from Queue import Empty, Queue
+from queue import Empty, Queue
 import sys
 import threading
 import time
@@ -126,7 +123,7 @@ try:
 
 
 except ImportError:
-    TailHandler = None
+    TailHandler = None  # type: ignore
 
 
 def tail_file(file, line_queue, prefix=""):

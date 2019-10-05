@@ -58,7 +58,6 @@ import threading
 import time
 
 import daemon
-from daemon import runner
 from docopt import docopt
 from fasteners import process_lock
 import psutil

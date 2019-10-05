@@ -1,0 +1,3 @@
+[flake8]
+# These must be ignored to make flake8 compatible with black
+ignore = E501, W503
