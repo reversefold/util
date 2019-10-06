@@ -176,7 +176,7 @@ class LockedPidFile(object):
                         % (self.pidfile_path, stalepid)
                     )
             except Exception as exc:
-                LOG.error("Exception %r checking the stale pidfile, ignoring", exc)
+                LOG.exception("Exception %r checking the stale pidfile, ignoring", exc)
             LOG.warning(
                 "Pidfile exists but is not locked, removing %s", self.pidfile_path
             )
