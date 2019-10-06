@@ -244,7 +244,8 @@ def main():
     )
     preserve = [out_handler.stream]
     if args["--stderr-log"] == "STDOUT":
-        err_logger = args["--stderr-log"]
+        err_logger = out_logger
+        err_handler = out_handler
     else:
         err_logger, err_handler = get_logger(
             "stderr",
