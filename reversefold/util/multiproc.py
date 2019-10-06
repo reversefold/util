@@ -60,7 +60,7 @@ class LinePipe(object):
         for line in self.input_stream:
             if self.capture_output:
                 self.buf.append(line)
-            self.output_func("%s%s%s\n" % (self.prefix, line.rstrip(), self.postfix))
+            self.output_func("%s%s%s" % (self.prefix, line.rstrip(), self.postfix))
 
 
 # TODO: Remove output capture entirely and allow the caller's output_func to handle it
