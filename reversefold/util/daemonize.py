@@ -324,6 +324,8 @@ def main():
                     if thread.is_alive():
                         alive_threads.append(thread)
                 threads = alive_threads
+        except Exception:
+            LOG.exception("Exception within DaemonContext")
         finally:
             if applock:
                 applock.release()
