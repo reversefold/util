@@ -259,6 +259,9 @@ def main():
     else:
         applock = None
 
+    # DaemonContext is about to close all of our file handles so our logger will stop working. Add the error handler
+    # to our logger so any logging after this won't be lost.
+    LOG.addHandler(err_handler)
     with daemon.DaemonContext(
         pidfile=pidfile, working_directory=os.getcwd(), files_preserve=preserve
     ):
