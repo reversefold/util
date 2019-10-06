@@ -50,6 +50,7 @@ Options:
 from __future__ import print_function
 from datetime import datetime, timedelta
 import functools
+import io
 import logging
 import logging.handlers
 import os
@@ -306,13 +307,27 @@ def main():
                 )
             proc.stdin.close()
             thread = threading.Thread(
-                target=multiproc.Pipe(proc.stdout, out_logger.info).flow
+                target=multiproc.LinePipe(
+                    "",
+                    io.TextIOWrapper(proc.stdout, errors="backslashreplace"),
+                    None,
+                    out_logger.info,
+                    "",
+                    False,
+                ).flow
             )
             thread.start()
             threads = [thread]
             if args["--stderr-log"] != "STDOUT":
                 thread = threading.Thread(
-                    target=multiproc.Pipe(proc.stderr, err_logger.info).flow
+                    target=multiproc.LinePipe(
+                        "",
+                        io.TextIOWrapper(proc.stderr, errors="backslashreplace"),
+                        None,
+                        err_logger.info,
+                        "",
+                        False,
+                    ).flow
                 )
                 thread.start()
                 threads.append(thread)
