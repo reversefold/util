@@ -225,7 +225,9 @@ def main():
         "w6",
         "midnight",
     ):
-        sys.stderr.write("Value for --when parameter not understood.\n")
+        sys.stderr.write(
+            "Value %r for --when parameter not understood.\n" % (args["--when"],)
+        )
         sys.stderr.write(docstr)
         sys.exit(1)
     if args["--debug"]:
