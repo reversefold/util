@@ -1,4 +1,3 @@
-import os
 import threading
 import sys
 
@@ -40,10 +39,8 @@ class Pipe(object):
 
     def flow(self):
         while True:
-            # Using os.read here to try to be a bit less blocking than read() would be. Not sure if it makes
-            # a difference or not, though.
-            data = os.read(self.input_stream.fileno(), 65536)
-            if data == b"":
+            data = self.input_stream.read(65535)
+            if not data:
                 break
             self.output_func(data)
 
@@ -60,11 +57,7 @@ class LinePipe(object):
         self.capture_output = capture_output
 
     def flow(self):
-        # NOTE: 'for line in self.input' seems correct but will
-        #  implicitly do extra buffering in Python 2.7, which won't
-        #  give you a line immediately every time one is available.
-        # This is supposedly fixed in Python 3.2.
-        for line in iter(self.input_stream.readline, b""):
+        for line in self.input_stream:
             if self.capture_output:
                 self.buf.append(line)
             self.output_func("%s%s%s\n" % (self.prefix, line.rstrip(), self.postfix))

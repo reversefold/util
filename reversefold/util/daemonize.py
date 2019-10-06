@@ -49,6 +49,7 @@ Options:
 """
 from __future__ import print_function
 from datetime import datetime, timedelta
+import functools
 import logging
 import logging.handlers
 import os
@@ -163,6 +164,7 @@ class LockedPidFile(object):
     def acquire(self, pid=None):
         self.pidfile_lock = process_lock.InterProcessLock(self.pidfile_lock_path)
         if not self.pidfile_lock.acquire():
+            LOG.error("Unable to acquire pifile_lock %s", self.pidfile_lock_path)
             return False
         if pid is None:
             pid = os.getpid()
@@ -181,9 +183,9 @@ class LockedPidFile(object):
                 "Pidfile exists but is not locked, removing %s", self.pidfile_path
             )
             os.unlink(self.pidfile_path)
-        self.pidfile = os.fdopen(
-            os.open(self.pidfile_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600),
-            "ax",
+
+        self.pidfile = open(
+            self.pidfile_path, "x", opener=functools.partial(os.open, mode=0o600)
         )
         self.pidfile.write(str(pid))
         self.pidfile.flush()
