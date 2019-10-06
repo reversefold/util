@@ -232,6 +232,7 @@ def main():
         sys.exit(1)
     if args["--debug"]:
         print(args)
+    os.umask(0o077)
     out_logger, out_handler = get_logger(
         "stdout",
         args["--stdout-log"],
