@@ -74,11 +74,18 @@ class Error(Exception):
 
 
 class TrimTrailingNewlinesStream(object):
+    """The input we're getting from the process has newlines at the end of each line.
+    Before getting here the logging system will add another newline. If there are two
+    at the end of a line, remove one of them.
+
+    NOTE: We also add our logging to the same handler as the process output and that
+    won't have the extra newline."""
+
     def __init__(self, stream):
         self.stream = stream
 
     def write(self, data):
-        if data[-1:] == "\n":
+        if data[-2:] == "\n\n":
             data = data[:-1]
         return self.stream.write(data)
 
