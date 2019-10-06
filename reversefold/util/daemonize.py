@@ -75,79 +75,19 @@ class Error(Exception):
     pass
 
 
-class TrimTrailingNewlinesStream(object):
-    """The input we're getting from the process has newlines at the end of each line.
-    Before getting here the logging system will add another newline. If there are two
-    at the end of a line, remove one of them.
-
-    NOTE: We also add our logging to the same handler as the process output and that
-    won't have the extra newline."""
-
-    def __init__(self, stream):
-        self.stream = stream
-
-    def write(self, data):
-        if data[-2:] == "\n\n":
-            data = data[:-1]
-        return self.stream.write(data)
-
-    def close(self):
-        return self.stream.close()
-
-    def flush(self):
-        return self.stream.flush()
-
-    def fileno(self):
-        return self.stream.fileno()
-
-
-class WatchedFileHandlerVerbatim(logging.handlers.WatchedFileHandler):
-    def __init__(self, *a, **k):
-        log_format = k.pop("log_format")
-        date_format = k.pop("date_format")
-        super(WatchedFileHandlerVerbatim, self).__init__(*a, **k)
-        formatter = logging.Formatter(log_format, datefmt=date_format)
-        self.setFormatter(formatter)
-
-    # overriding to patch the stream to get rid of the trailing newlines added by the logging system
-    def _open(self):
-        return TrimTrailingNewlinesStream(
-            super(WatchedFileHandlerVerbatim, self)._open()
-        )
-
-
-class TimedRotatingFileHandlerVerbatim(logging.handlers.TimedRotatingFileHandler):
-    def __init__(self, *a, **k):
-        log_format = k.pop("log_format")
-        date_format = k.pop("date_format")
-        super(TimedRotatingFileHandlerVerbatim, self).__init__(*a, **k)
-        formatter = logging.Formatter(log_format, datefmt=date_format)
-        self.setFormatter(formatter)
-
-    # overriding to patch the stream to get rid of the trailing newlines added by the logging system
-    def _open(self):
-        return TrimTrailingNewlinesStream(
-            super(TimedRotatingFileHandlerVerbatim, self)._open()
-        )
-
-
 def get_logger(
     name, filename, log_format, date_format, log_handler, when, interval, backup_count
 ):
 
     if log_handler == "watched":
-        handler = WatchedFileHandlerVerbatim(
-            filename, log_format=log_format, date_format=date_format
-        )
+        handler = logging.handlers.WatchedFileHandler(filename)
     elif log_handler == "timed":
-        handler = TimedRotatingFileHandlerVerbatim(
-            filename,
-            log_format=log_format,
-            date_format=date_format,
-            when=when,
-            interval=interval,
-            backupCount=backup_count,
+        handler = logging.handlers.TimedRotatingFileHandler(
+            filename, when=when, interval=interval, backupCount=backup_count
         )
+    formatter = logging.Formatter(log_format, datefmt=date_format)
+    handler.setFormatter(formatter)
+
     handler.setLevel(logging.INFO)
     logger = logging.getLogger("daemonize.%s" % (name,))
     logger.setLevel(logging.INFO)
