@@ -58,8 +58,10 @@ class LinePipe(object):
 
     def flow(self):
         for line in self.input_stream:
-            if isinstance(line, bytes):
+            try:
                 line = line.decode(errors="backslashreplace")
+            except AttributeError:
+                pass
             if self.capture_output:
                 self.buf.append(line)
             self.output_func("%s%s%s" % (self.prefix, line.rstrip(), self.postfix))
