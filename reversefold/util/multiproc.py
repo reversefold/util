@@ -58,16 +58,11 @@ class LinePipe(object):
 
     def flow(self):
         for line in self.input_stream:
+            if isinstance(line, bytes):
+                line = line.decode(errors="backslashreplace")
             if self.capture_output:
                 self.buf.append(line)
-            self.output_func(
-                "%s%s%s"
-                % (
-                    self.prefix,
-                    line.decode(errors="backslashreplace").rstrip(),
-                    self.postfix,
-                )
-            )
+            self.output_func("%s%s%s" % (self.prefix, line.rstrip(), self.postfix))
 
 
 # TODO: Remove output capture entirely and allow the caller's output_func to handle it
