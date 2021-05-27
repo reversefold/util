@@ -1,7 +1,10 @@
 import contextlib
 import logging
 import os
-import pwd
+try:
+    import pwd
+except ImportError:
+    pwd = None
 
 import psutil
 
@@ -106,7 +109,10 @@ def die(proc, recursive=False):
 
 def get_processes_in_path(path, owner=_SENTINEL):
     if owner is _SENTINEL:
-        owner = pwd.getpwuid(os.getuid()).pw_name
+        if pwd is None:
+            owner = None
+        else:
+            owner = pwd.getpwuid(os.getuid()).pw_name
     procs = []
     for proc in psutil.process_iter():
         if owner is not None and proc.username() != owner:
